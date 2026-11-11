@@ -1,24 +1,24 @@
-name: publish
+name: Publish Package
 
 on:
   push:
     tags: ['v*']
-  workflow_dispatch:
 
 permissions:
-  contents: read
   id-token: write
+  contents: read
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      # 不要给 setup-node 传 registry-url：它会写入一个占位 NODE_AUTH_TOKEN，
-      # npm 会拿假 token 去请求，注册表回 404，trusted publishing 的 OIDC 就用不上了
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      # 官方示例的版本组合：setup-node v6 + Node 24。
+      # v4 会写入占位的 NODE_AUTH_TOKEN，npm 拿假 token 请求，OIDC 就不生效了。
+      - uses: actions/setup-node@v6
         with:
-          node-version: '22'
-      - run: npm install -g npm@latest
-      - run: npm --version
-      - run: npm publish --provenance --access public
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+      - run: node -v && npm -v
+      - run: npm publish --access public
