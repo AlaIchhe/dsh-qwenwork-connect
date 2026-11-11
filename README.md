@@ -17,7 +17,7 @@
 ## 安装
 
 ```bash
-dsh plugin --profile web add github:AaIchhe/dsh-qwenwork-connect
+dsh plugin --profile web add github:AlaIchhe/dsh-qwenwork-connect
 ```
 
 还没发 npm，所以用 github 源装；出包之后可以直接 `add dsh-qwenwork-connect`。
