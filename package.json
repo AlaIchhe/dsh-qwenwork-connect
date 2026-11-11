@@ -1,0 +1,46 @@
+{
+  "name": "dsh-qwenwork-connect",
+  "version": "0.1.0",
+  "description": "千问办公（QwenWork）的 DSH 模型提供方：device flow 登录、官方网关、支持工具调用",
+  "license": "MIT",
+  "author": "AaIchhe",
+  "type": "module",
+  "main": "lib/index.js",
+  "bin": {
+    "dsh-qwenwork-connect": "bin/login.mjs"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "qwenwork",
+    "千问办公",
+    "qwen",
+    "model-provider"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AaIchhe/dsh-qwenwork-connect.git"
+  },
+  "files": [
+    "lib/",
+    "bin/",
+    "research/wasm.bin",
+    "research/qoder-wasm-glue.mjs",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2 || ^5.0.0-0",
+    "@deepseek-ai/dsh-host-webserver": ">=0.1.2-rc.1 <0.2.0-0 || >=0.2.0-rc.1 <0.3.0-0",
+    "@deepseek-ai/dsh-llm": ">=0.1.2-rc.1 <0.2.0-0 || >=0.2.0-rc.1 <0.3.0-0",
+    "@deepseek-ai/dsh-llm-pi-ai": ">=0.1.2-rc.1 <0.2.0-0 || >=0.2.0-rc.1 <0.3.0-0",
+    "@deepseek-ai/dsh-settings": ">=0.1.2-rc.1 <0.2.0-0 || >=0.2.0-rc.1 <0.3.0-0",
+    "@deepseek-ai/schemastery": "^3.18.2 || ^4.0.0-0",
+    "@earendil-works/pi-ai": ">=0.84.4 <0.86.0 || >=1.0.0-0",
+    "react": "^18.2.0"
+  }
+}

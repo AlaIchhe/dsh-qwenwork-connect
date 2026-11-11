@@ -1,0 +1,5 @@
+# 把 provider 挂进 Cordis 树。entry id 与上游一致（llm-qwenwork），
+# 但包名是本仓库，两个插件不要同时启用——它们注册同一个 provider 名。
+- insert:
+    - id: llm-qwenwork
+      name: dsh-qwenwork-connect
