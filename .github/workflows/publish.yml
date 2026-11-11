@@ -17,12 +17,5 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - name: Diagnose OIDC
-        run: |
-          unset NODE_AUTH_TOKEN
-          echo "npm: $(npm -v)"
-          echo "OIDC request url set: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}"
-          echo "registry: $(npm config get registry)"
-          cat ~/.npmrc 2>/dev/null || echo "no user npmrc"
-      - name: Publish
-        run: npm publish --access public --loglevel silly 2>&1 | tail -60
+      # 不配置 registry-url / NODE_AUTH_TOKEN：让 npm 用 GitHub OIDC 换一次性凭据
+      - run: npm publish --access public
