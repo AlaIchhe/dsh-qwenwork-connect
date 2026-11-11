@@ -1,0 +1,25 @@
+name: publish
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+      # trusted publishing 需要 npm >= 11.5.1；Node 22 自带的版本偏旧
+      - run: npm install -g npm@latest
+      - run: npm --version
+      # 不需要 NODE_AUTH_TOKEN：npm 会用 GitHub 的 OIDC 身份换一次性凭据
+      - run: npm publish --provenance --access public
