@@ -17,11 +17,17 @@
 ## 安装
 
 ```bash
-dsh plugin --profile web add github:AlaIchhe/dsh-qwenwork-connect
+dsh plugin --profile web add dsh-qwenwork-connect
 ```
 
-还没发 npm，所以用 github 源装；出包之后可以直接 `add dsh-qwenwork-connect`。
 装完重启 DSH，模型选择器里会多出 `qwenwork` 下三个模型。
+
+发布走 GitHub Actions + npm trusted publishing，打 tag 就自动发，不需要 token，
+也不需要 2FA：
+
+```bash
+npm version patch && git push --follow-tags
+```
 
 ## 登录
 
