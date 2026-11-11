@@ -14,12 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # 不要给 setup-node 传 registry-url：它会写入一个占位 NODE_AUTH_TOKEN，
+      # npm 会拿假 token 去请求，注册表回 404，trusted publishing 的 OIDC 就用不上了
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
-      # trusted publishing 需要 npm >= 11.5.1；Node 22 自带的版本偏旧
       - run: npm install -g npm@latest
       - run: npm --version
-      # 不需要 NODE_AUTH_TOKEN：npm 会用 GitHub 的 OIDC 身份换一次性凭据
       - run: npm publish --provenance --access public
