@@ -13,12 +13,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      # 官方示例的版本组合：setup-node v6 + Node 24。
-      # v4 会写入占位的 NODE_AUTH_TOKEN，npm 拿假 token 请求，OIDC 就不生效了。
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false
-      - run: node -v && npm -v
+      - name: Drop the placeholder token so npm uses OIDC
+        run: |
+          unset NODE_AUTH_TOKEN
+          npm config delete //registry.npmjs.org/:_authToken || true
+          echo "authToken config: $(npm config get //registry.npmjs.org/:_authToken || echo none)"
       - run: npm publish --access public
