@@ -17,11 +17,11 @@
 ## 安装
 
 ```bash
-dsh plugin --profile web add dsh-qwenwork-connect
+dsh plugin --profile web add github:AaIchhe/dsh-qwenwork-connect
 ```
 
-本地开发用 `file:` 装也行。装完重启 DSH，模型选择器里会多出 `qwenwork`
-下三个模型。
+还没发 npm，所以用 github 源装；出包之后可以直接 `add dsh-qwenwork-connect`。
+装完重启 DSH，模型选择器里会多出 `qwenwork` 下三个模型。
 
 ## 登录
 
