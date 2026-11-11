@@ -16,11 +16,13 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false
-      - name: Drop the placeholder token so npm uses OIDC
+      - name: Diagnose OIDC
         run: |
           unset NODE_AUTH_TOKEN
-          npm config delete //registry.npmjs.org/:_authToken || true
-          echo "authToken config: $(npm config get //registry.npmjs.org/:_authToken || echo none)"
-      - run: npm publish --access public
+          echo "npm: $(npm -v)"
+          echo "OIDC request url set: ${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}"
+          echo "registry: $(npm config get registry)"
+          cat ~/.npmrc 2>/dev/null || echo "no user npmrc"
+      - name: Publish
+        run: npm publish --access public --loglevel silly 2>&1 | tail -60
