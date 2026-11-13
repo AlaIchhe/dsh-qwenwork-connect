@@ -1,6 +1,6 @@
 {
   "name": "dsh-qwenwork-connect",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "千问办公（QwenWork）的 DSH 模型提供方：device flow 登录、官方网关、支持工具调用",
   "license": "MIT",
   "author": "AaIchhe",
@@ -27,11 +27,10 @@
   "files": [
     "lib/",
     "bin/",
-    "research/wasm.bin",
-    "research/qoder-wasm-glue.mjs",
     "cordis.patch.yml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md"
   ],
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2 || ^5.0.0-0",
