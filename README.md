@@ -59,7 +59,19 @@ npx dsh-qwenwork-connect login
 ```
 POST /plugins/dsh-qwenwork-connect/login/start
 GET  /plugins/dsh-qwenwork-connect/login/status
+POST /plugins/dsh-qwenwork-connect/logout
 ```
+
+**退出登录**在同一张卡片的账号行右侧点「退出登录」，确认后删除
+`~/.dsh/qwenwork-desktop.json`，状态立即回到未登录，可随时重新登录。命令行
+等价操作是：
+
+```bash
+npx dsh-qwenwork-connect logout
+```
+
+退出只删凭据文件，保留 `~/.dsh/qwenwork-machine-id`——设备标识不变，重新登录
+不会换设备。三条路由都只接受本机环回请求。
 
 ## 三个坑
 
