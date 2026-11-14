@@ -103,8 +103,10 @@ npx dsh-qwenwork-connect logout
 
 ## 已知限制
 
-- 思考链关不掉。网关侧强制思考，`enable_thinking:false`、
-  `reasoning_effort:"none"` 这类字段都不生效，只会在输出里多出 reasoning 通道。
+- 思考固定开启，没有档位。网关侧强制思考，请求恒发 `parameters.enable_thinking:true`；
+  上游目录的 `thinking_config` 为 `null`，没有声明任何 effort 档位，插件不提供
+  开关，UI 也不显示推理等级。`enable_thinking:false`、`reasoning_effort:"none"`
+  这类字段上游都不认。
 - 单次请求的图片预算按网关实测收紧到 6 MB / 32 张；超出时交给宿主的
   `dsh-compaction-image-offload` 把最旧的图片标成已卸载后重试。宿主没启用
   这个插件时，图片密集的长会话仍会失败。
