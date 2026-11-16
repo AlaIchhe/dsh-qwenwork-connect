@@ -2,12 +2,18 @@
 
 将千问办公（QwenWork）接入 DeepSeek Harness（DSH）的模型 Provider 插件。
 
-本插件直连千问办公官方模型网关（`gateway.qwenwork.cn`），原生支持 **工具调用（Tool Calls）**、**图片输入**、**多轮上下文** 与 **实时用量统计**。
+本插件直连千问办公官方模型网关，同时支持**国内版（.cn）**与**国际版（.ai）**两个站点，原生支持 **工具调用（Tool Calls）**、**图片输入**、**多轮上下文** 与 **实时用量统计**。
+
+| 站点 | 网关 | provider id | 模型选择器分组 |
+| --- | --- | --- | --- |
+| 国内版 `.cn` | `gateway.qwenwork.cn` | `qwenwork` | QwenWork |
+| 国际版 `.ai` | `gateway.qwenwork.ai` | `qwenwork-intl` | QwenWork Global |
 
 > **开源声明**：本项目基于 `gaoqiaoliangjie666/dsh-qwen-connect`、`xiao-hans/dsh-qwen-connect` 与 `REALOIYO/dsh-qwenwork-connector` 二次开发，非官方项目，与千问办公官方无关。上游版权声明完整保留在 `LICENSE` 与 `THIRD-PARTY-NOTICES.md` 中；原作者如认为本仓库的二次分发不妥，请提 Issue 联系下架。详见文末[二次开源与致谢](#二次开源与致谢)。
 
 ## 核心特性
 
+- **双站点**：国内版（`qwenwork.cn`）与国际版（`qwenwork.ai`）**同时可用**，两站各自独立登录、独立模型目录、独立积分，互不干扰。账号不互通，因此凭据分文件存放。
 - **原生网关能力**：直连官方桌面端接口，完整透传 `tools` 与 `image_url`，Agent 循环与上下文管理完全交由 DSH 控制。
 - **零外部二进制依赖**：在 `lib/cosy.js` 中基于 `node:crypto` 纯手写实现 COSY 信封签名与请求编码，无需额外引入 WASM 组件或 Windows DPAPI。
 - **双端丝滑登录**：支持在 DSH 插件面板一键网页授权，也支持无头环境下的 CLI 命令行登录，Token 到期自动无感刷新。
@@ -27,7 +33,7 @@ dsh plugin --profile web add dsh-qwenwork-connect
 
 ### 2. 登录授权
 
-首次使用需要获取账号凭据，提供 **界面登录** 和 **命令行登录** 两种方式：
+首次使用需要获取账号凭据，提供 **界面登录** 和 **命令行登录** 两种方式。两个站点**分别登录**：卡片顶部的「国内版 .cn / 国际版 .ai」切换器决定你正在给哪个站点登录。
 
 **方式 A：DSH 界面登录（推荐）**
 
@@ -42,7 +48,12 @@ dsh plugin --profile web add dsh-qwenwork-connect
 npx dsh-qwenwork-connect login
 ```
 
-用已登录千问办公的浏览器打开终端打印的 `gateway.qwenwork.cn/device/selectAccounts` 链接，完成账号与团队选择后，凭据会自动写入 `~/.dsh/qwenwork-desktop.json`（权限 `600`）。
+用已登录千问办公的浏览器打开终端打印的授权链接，完成账号与团队选择后，凭据会自动写入该站点的凭据文件（权限 `600`）：
+
+```bash
+npx dsh-qwenwork-connect login                  # 国内版 .cn → ~/.dsh/qwenwork-desktop.json
+npx dsh-qwenwork-connect login --site intl      # 国际版 .ai → ~/.dsh/qwenwork-global.json
+```
 
 **退出登录**
 
@@ -50,14 +61,16 @@ npx dsh-qwenwork-connect login
 * **命令行操作**：
 
 ```bash
-npx dsh-qwenwork-connect logout
+npx dsh-qwenwork-connect logout                 # 只退出国内版
+npx dsh-qwenwork-connect logout --site intl     # 只退出国际版
 ```
 
-*(注：退出登录只会清理凭据文件 `~/.dsh/qwenwork-desktop.json`，会保留设备标识 `~/.dsh/qwenwork-machine-id`，下次重登不会触发更换设备。)*
+*(注：退出登录只清理**该站点**的凭据文件，会保留设备标识 `~/.dsh/qwenwork-machine-id`，下次重登不会触发更换设备。)*
 
 ### 3. 模型选择与省流建议
 
 * **日常建议切 `flash`**：插件默认选中 `pro` 模型，但日常任务强烈建议切换到 `flash`，两者积分消耗相差 **10 倍**（选择器中的 `x1.00` / `x0.10` 即为当前消耗倍率）。
+* **国际版模型 key 不同**：国际版用 `qwork-auto`（Standard｜Qwen3.8-Flash）/ `qwork-advanced`（Pro）/ `qwork-ultimate`（Flagship），不是 .cn 的 `flash` / `pro`。两站的 key 不通用，插件已按站点各存一份目录，无需手动切换。
 * **固定 1M 上下文**：请求固定按 1M 上下文声明，不设档位切换（官方模型均为 1M，且实测计费不按上下文长度分档）。
 * **目录自动刷新**：模型列表、视觉支持与费率每 5 分钟从网关（`/algo/api/v2/model/list`）同步一次；首次拉取成功前使用内置默认目录兜底。
 
