@@ -1,6 +1,39 @@
 # 决策日志（DECISIONS）
 
 <!-- APPEND-ONLY LOG: 新条目插入到此行之后 -->
+## DEC-012 · 至少保留一个可用模型的守卫放服务端；刷新走 directory.replace
+- 日期：2026-11-17
+- 背景：把某站点的 provider 清空后，该站点分组在选择器里不可选，用户唯一
+  恢复路径是手改 patch.yml——破坏半径远超「一个开关」应有的水平。
+- 决策：守卫在 `models-route.js`（409），不依赖卡片自觉；绕过 UI 直接
+  POST 同样被拦。写成功后调用 `registerConfigurableProviders` 句柄的
+  `replace(同一份条目)` 触发 `llm/adapters-updated`——`emitAdaptersUpdated`
+  是 LlmRuntime 私有方法，replace 是插件能公开触达该事件的唯一路径。
+- 验证：`toggle-route-test.mjs` 17 项断言（含 409、幂等不写盘、replace 计数）。
+
+## DEC-011 · 数据形状是「停用列表」，不是「启用列表」
+- 日期：2026-11-17
+- 背景：模型目录 5 分钟从上游刷新一次，会新增/下架模型。
+- 决策：Config 里记 `disabledModels: { cn: [...], intl: [...] }`。新模型
+  默认可用（启用列表会让它们凭空消失）；下架模型无需迁移（读取时按当前
+  目录过滤）；空列表 = 全部启用 = 稳定缺省，老用户 patch.yml 无此字段
+  行为完全不变。最后一个 key 移除后整个字段从 patch.yml 消失，只留真正
+  生效的差异。
+
+## DEC-010 · 模型开关持久化在插件 Config 的 volatile 字段，不自建文件
+- 日期：2026-11-17
+- 背景：可选方案是像凭据那样自管一个 JSON 文件；但 DSH 的 configuration.md
+  明确：插件配置变更后要经 configEditor 写 profile。
+- 决策：`Config.disabledModels` 以 `.volatile()` 声明，写入走
+  `ctx.get('configEditor').edit(ctx.fiber.entry, ...)`。收益：写盘与其它
+  profile 变更串行化、候选值经 schema 校验、被上层覆盖的字段会被拒绝；
+  volatile 语义让切换**不重启插件**（shim 监听、登录态、进行中的对话全部
+  原地保留）。读取统一走 `model-preferences.js`，兼容 volatile 引用、
+  普通对象与缺省值三种来源。
+- 验证：真实 schemastery 3.19 下 `Config['~standard'].validate` 产出
+  volatile 引用且 `.get()` 返回原值；e2e 中 updateVolatile 模拟 loader
+  提交后 `listModels` 立即反映新状态。
+
 
 ## DEC-009 · 登录状态机按站点独立，退出只作废本站在途轮询
 - 日期：2026-11-17

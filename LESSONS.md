@@ -1,6 +1,39 @@
 # 教训日志（LESSONS）
 
 <!-- APPEND-ONLY LOG: 新条目插入到此行之后 -->
+## LES-012 · 测试 harness 的 replace 锚点必须先读实际文件再断言存在
+- 日期：2026-11-17
+- 现象：给 render-card.mjs 加 enabled 字段的 python replace 静默失败
+  （锚点里多写了一个 `isRecommended: true`），断言 FAIL 后又因 grep 模式
+  命中「断言标签文本」而误读成开关缺失。
+- 教训：replace 前 `assert old in s`；断言输出与渲染产物分开 grep，避免
+  标签字符串污染匹配结果。本次两处各踩一次，最终 9 项断言全过。
+
+## LES-011 · cosmokit updateVolatile 的 source 也必须是 volatile 引用
+- 日期：2026-11-17
+- 现象：测试里 `updateVolatile(vol, { cn: [...] })` 抛
+  `source.get is not a function`。
+- 根因：loader 的 `_commitVolatile` 里 source 取自 resolveConfig 的产物
+  （已包装），签名是 ref←ref。
+- 教训：模拟 loader 提交要 `updateVolatile(ref, createVolatile(value))`。
+
+## LES-010 · undici fetch 静默覆盖自定义 Host 头
+- 日期：2026-11-17
+- 现象：用 `fetch(..., { headers: { host: 'evil.example.com' } })` 测环回
+  拒绝，请求却带着真实 Host 通过。
+- 教训：凡要伪造 Host/Origin 的安全测试一律用裸 `http.request`；
+  fetch 的 headers 里 Host 属于 forbidden header。
+
+## LES-009 · schemastery `.volatile()` 字段 validate 后返回引用而非原值
+- 日期：2026-11-17
+- 现象：`validate({ d: { cn: ['flash'] } })` 打印出 `{"d":{}}`，一度以为
+  dict 值被 volatile 吞掉。
+- 根因：字段被包成 `{ get, [write] }` 冻结引用，JSON.stringify 看不到
+  内部快照——`.get()` 才是真值。
+- 教训：判断 volatile 字段用 `isVolatile()`/`.get()`，不要用序列化输出；
+  另注意 `z.dict(value)` 只传一个参数，`z.dict(key, value)` 双参形式在
+  3.19 会校验失败。
+
 
 ## LES-008 · 离屏渲染 harness 里 jsx 的第三参数是 key 不是 children
 - 日期：2026-11-17
