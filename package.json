@@ -1,7 +1,7 @@
 {
   "name": "dsh-qwenwork-connect",
-  "version": "0.3.3",
-  "description": "千问办公（QwenWork）的 DSH 模型提供方：device flow 登录、官方网关、支持工具调用",
+  "version": "0.4.0",
+  "description": "千问办公（QwenWork）的 DSH 模型提供方：device flow 登录、官方网关、支持工具调用，含国内版 .cn 与国际版 .ai 双站点",
   "license": "MIT",
   "author": "AaIchhe",
   "type": "module",
@@ -18,7 +18,9 @@
     "qwenwork",
     "千问办公",
     "qwen",
-    "model-provider"
+    "model-provider",
+    "qwenwork-intl",
+    "qwenwork-global"
   ],
   "repository": {
     "type": "git",
