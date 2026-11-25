@@ -87,6 +87,14 @@ npx dsh-qwenwork-connect logout --site intl     # 只退出国际版
 - 停用不影响进行中的会话：若旧会话仍选中该模型，请求会得到明确提示而不是静默失败。
 - 偏好持久化在 profile 配置的 `disabledModels` 字段（形如 `{ cn: [flash], intl: [qwork-ultimate] }`），可直接手改；新上架的模型默认可用，无需迁移。拨动开关**不会重启插件**（DSH volatile 配置），登录态与进行中的对话不受影响。
 
+---
+
+## 已知限制
+
+- **`qwen4-max` 无前缀缓存命中**：上游网关将 `qwen4-max` 路由至 `qwork-claude-chat-mode-pool` 时，网关返回的 `prompt_tokens_details` 中 `cacheable_tokens` 与 `cached_tokens` 恒为 `0`（同链路下 `glm-5.3` 等模型可正常命中缓存）。该行为由上游网关侧决定，插件已如实透传上游返回的 `usage` 统计。
+
+---
+
 ## 二次开源与致谢
 
 本项目为社区二次开源作品，非千问办公官方实现。
