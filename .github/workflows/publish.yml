@@ -17,6 +17,14 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npm run check
-      - run: npm publish --access public
+      # 不配置 registry-url / NODE_AUTH_TOKEN：让 npm 用 GitHub OIDC 换一次性凭据
+      - name: Publish to npm
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$VERSION" == *-* ]]; then
+            npm publish --access public --tag next
+          else
+            npm publish --access public
+          fi
