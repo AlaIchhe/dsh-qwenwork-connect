@@ -98,6 +98,7 @@ export class SiteRuntime {
   private catalogInflight: Promise<ModelCatalogEntry[]> | null = null;
   private catalogAuthNoticed = false;
   private catalogTimer: ReturnType<typeof setInterval> | null = null;
+  private lastAuthenticated: boolean | null = null;
 
   // Account overview short-TTL cache + per-site baseline
   private accountCache: { overview: AccountOverview; fetchedAt: number } | null = null;
@@ -167,6 +168,16 @@ export class SiteRuntime {
     this.catalogTimer.unref?.();
   }
 
+  private syncAuthState(authenticated: boolean, forceNotify = false): boolean {
+    const changed = this.lastAuthenticated !== null && this.lastAuthenticated !== authenticated;
+    this.lastAuthenticated = authenticated;
+    if (forceNotify || changed) {
+      this.onCatalogChanged?.(this.siteId);
+      return true;
+    }
+    return false;
+  }
+
   async refreshCatalog(force = false): Promise<ModelCatalogEntry[]> {
     if (!force && Date.now() - this.catalogFetchedAt < CATALOG_TTL_MS && this.catalogFetchedAt > 0) {
       return this.catalog;
@@ -176,6 +187,7 @@ export class SiteRuntime {
     const run = (async () => {
       try {
         if (!(await this.gateway.hasCredential())) {
+          this.syncAuthState(false);
           if (!this.catalogAuthNoticed) {
             this.catalogAuthNoticed = true;
             this.logger?.info?.(
@@ -184,6 +196,7 @@ export class SiteRuntime {
           }
           return this.catalog;
         }
+        const notifiedAuth = this.syncAuthState(true);
         const next = await this.gateway.fetchModelCatalog();
         const prevIds = this.catalog.map((m) => `${m.id}:${m.billingRate}`).join(',');
         const nextIds = next.map((m) => `${m.id}:${m.billingRate}`).join(',');
@@ -193,7 +206,7 @@ export class SiteRuntime {
         this.logger?.info?.(
           `dsh-qwenwork-connect: 模型目录已刷新（${this.siteId}，${next.length} 个）`,
         );
-        if (prevIds !== nextIds) {
+        if (!notifiedAuth && prevIds !== nextIds) {
           this.onCatalogChanged?.(this.siteId);
         }
         return this.catalog;
@@ -204,6 +217,7 @@ export class SiteRuntime {
             error.code === 'TOKEN_EXPIRED_NO_REFRESH' ||
             error.code === 'REFRESH_REJECTED');
         if (expected) {
+          this.syncAuthState(false);
           if (!this.catalogAuthNoticed) {
             this.catalogAuthNoticed = true;
             this.logger?.info?.(
@@ -335,6 +349,8 @@ export class SiteRuntime {
           ? this.updateCreditBaseline(remaining)
           : undefined;
 
+      this.syncAuthState(true);
+
       return {
         ...base,
         status: 'signed-in',
@@ -359,6 +375,9 @@ export class SiteRuntime {
       };
     } catch (error) {
       const retryable = isQwenError(error) && error.retryable;
+      if (!retryable) {
+        this.syncAuthState(false);
+      }
       const errPayload: StatusErrorPayload = isQwenError(error)
         ? error.toJSON()
         : { code: 'UNKNOWN', message: redactSecrets(error) };
@@ -448,6 +467,7 @@ export class SiteRuntime {
           email: cred.user.email,
         };
         this.invalidateAccountCache();
+        this.syncAuthState(true, true);
         this.logger?.info?.(`dsh-qwenwork-connect: device login completed (${this.siteId})`);
         void this.refreshCatalog(true);
       })
@@ -483,6 +503,7 @@ export class SiteRuntime {
     const removed = await this.store.clear(this.siteId);
     this.invalidateAccountCache();
     this.maxObservedCredits = 0;
+    this.syncAuthState(false, true);
     this.logger?.info?.(
       `dsh-qwenwork-connect: 已退出登录（${this.site.label}）${removed ? '' : '（凭据原本不存在）'}`,
     );

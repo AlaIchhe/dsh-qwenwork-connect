@@ -71,7 +71,14 @@ test('SiteRuntime isolates creditBaseline between cn and intl and aborts poll on
   });
 
   const store = createMemoryStore({ cn: makeCred('cn'), intl: makeCred('intl') });
-  const cn = new SiteRuntime({ siteId: 'cn', store, rawConfig: {}, fetchImpl: mockFetch });
+  const changedSites = [];
+  const cn = new SiteRuntime({
+    siteId: 'cn',
+    store,
+    rawConfig: {},
+    fetchImpl: mockFetch,
+    onCatalogChanged: (siteId) => changedSites.push(siteId),
+  });
   const intl = new SiteRuntime({ siteId: 'intl', store, rawConfig: {}, fetchImpl: mockFetch });
 
   const cnStatus = await cn.buildStatusResponse();
@@ -85,6 +92,13 @@ test('SiteRuntime isolates creditBaseline between cn and intl and aborts poll on
   await new Promise((r) => setTimeout(r, 20));
   await cn.logout();
   assert.equal(pollAborted, true);
+  assert.ok(changedSites.includes('cn'));
+
+  // External sign-in detected on status refresh also notifies catalog change
+  const beforeExternal = changedSites.length;
+  await store.write('cn', makeCred('cn'));
+  await cn.buildStatusResponse(true);
+  assert.equal(changedSites.length, beforeExternal + 1);
 
   cn.dispose();
   intl.dispose();

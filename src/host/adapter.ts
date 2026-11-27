@@ -111,6 +111,9 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
 
   override async listModels(provider: string): Promise<readonly LlmModelInfo[]> {
     const runtime = this.runtimeForProvider(provider);
+    if (!(await runtime.gateway.hasCredential())) {
+      return [];
+    }
     return runtime.visibleModels().map((entry) => ({
       provider,
       id: entry.id,

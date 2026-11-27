@@ -212,6 +212,42 @@ test('QwenWorkLlmAdapter rejects disabled model before any network call', async 
   cnRuntime.dispose();
 });
 
+test('QwenWorkLlmAdapter.listModels hides unsigned-in sites and reflects login/logout changes', async () => {
+  const store = createMemoryStore({ cn: makeCredential('cn') });
+  const cnRuntime = new SiteRuntime({
+    siteId: 'cn',
+    store,
+    rawConfig: { disabledModels: { cn: ['flash'] } },
+  });
+  const intlRuntime = new SiteRuntime({ siteId: 'intl', store, rawConfig: {} });
+  const adapter = new QwenWorkLlmAdapter({
+    runtimes: new Map([
+      ['cn', cnRuntime],
+      ['intl', intlRuntime],
+    ]),
+  });
+
+  // CN is signed in (with flash disabled); INTL is signed out and must stay hidden
+  const cnModels = await adapter.listModels('qwenwork');
+  assert.ok(cnModels.length > 0);
+  assert.equal(cnModels.some((m) => m.id === 'flash'), false);
+
+  const intlModelsBefore = await adapter.listModels('qwenwork-intl');
+  assert.deepEqual(intlModelsBefore, []);
+
+  // Signing out CN hides CN models immediately
+  await cnRuntime.logout();
+  assert.deepEqual(await adapter.listModels('qwenwork'), []);
+
+  // Signing in INTL exposes INTL models
+  await store.write('intl', makeCredential('intl'));
+  const intlModelsAfter = await adapter.listModels('qwenwork-intl');
+  assert.ok(intlModelsAfter.length > 0);
+
+  cnRuntime.dispose();
+  intlRuntime.dispose();
+});
+
 test('QwenWorkLlmAdapter enforces image budget and throws IMAGE_OFFLOAD_REQUIRED', async () => {
   const store = createMemoryStore({ cn: makeCredential('cn') });
   const cnRuntime = new SiteRuntime({ siteId: 'cn', store, rawConfig: {} });
