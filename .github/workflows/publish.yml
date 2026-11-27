@@ -17,5 +17,6 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
-      # 不配置 registry-url / NODE_AUTH_TOKEN：让 npm 用 GitHub OIDC 换一次性凭据
+      - run: npm install --no-audit --no-fund
+      - run: npm run check
       - run: npm publish --access public

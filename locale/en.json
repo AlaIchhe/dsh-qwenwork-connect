@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "QwenWork",
+    "description": "Connect QwenWork China (.cn) and Global (.ai) directly to DeepSeek Harness via a native LLM adapter and browser device-flow sign-in, with per-site model toggles, credit status, tool calls, and image inputs."
+  }
+}

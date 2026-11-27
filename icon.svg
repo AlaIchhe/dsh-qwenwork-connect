@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36" fill="none">
+  <defs>
+    <linearGradient id="qw-ring-grad" x1="7" y1="6" x2="29" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4F6EF7" />
+      <stop offset="100%" stop-color="#7B52EC" />
+    </linearGradient>
+    <mask id="qw-cutout">
+      <rect width="36" height="36" fill="#FFFFFF" />
+      <circle cx="17.5" cy="17.5" r="5.5" fill="#000000" />
+    </mask>
+  </defs>
+  <circle cx="17.5" cy="17.5" r="10.5" fill="url(#qw-ring-grad)" mask="url(#qw-cutout)" />
+  <path d="M22.2 22.2L27.8 27.8" stroke="#7B52EC" stroke-width="3.2" stroke-linecap="round" />
+  <circle cx="26.5" cy="9.5" r="2.2" fill="#4F6EF7" />
+</svg>
