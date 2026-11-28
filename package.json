@@ -1,6 +1,6 @@
 {
   "name": "dsh-qwenwork-connect",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "千问办公（QwenWork）的 DSH 原生模型提供方：Device Flow 登录、直连官方网关、原生 LlmAdapter（零本地回环代理），支持国内版 .cn 与国际版 .ai 双站点",
   "license": "MIT",
   "author": "AaIchhe",
