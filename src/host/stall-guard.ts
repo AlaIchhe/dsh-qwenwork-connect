@@ -24,6 +24,7 @@ export const STALL_STEER_SOURCE_KIND = 'qwenwork-stall-continue';
 
 export interface StallProjectionState {
   readonly stopped: boolean;
+  readonly currentTurn: number | null;
   readonly sessionContinues: number;
   readonly lastTurn: number | null;
   readonly lastTurnContinues: number;
@@ -37,6 +38,7 @@ export interface StallProjectionState {
 
 export const StallProjectionStateSchema = z.object({
   stopped: z.boolean(),
+  currentTurn: z.number().nullable(),
   sessionContinues: z.number(),
   lastTurn: z.number().nullable(),
   lastTurnContinues: z.number(),
@@ -53,6 +55,7 @@ export const StallProjectionStateSchema = z.object({
 export function initStallProjection(): StallProjectionState {
   return {
     stopped: false,
+    currentTurn: null,
     sessionContinues: 0,
     lastTurn: null,
     lastTurnContinues: 0,
@@ -71,19 +74,31 @@ export function foldStallEvent(
   const data = event.data;
   if (!data) return state;
 
+  if (event.type === 'turn/start') {
+    if (typeof data.turn !== 'number' || data.turn === state.currentTurn) return state;
+    return {
+      ...state,
+      currentTurn: data.turn,
+    };
+  }
+
   if (event.type === 'user/message') {
     const source = asRecord(data.source);
     const kind = typeof source?.kind === 'string' ? source.kind : '';
     if (kind === 'user') {
-      if (!state.stopped && state.sessionContinues === 0) return state;
+      if (!state.stopped && state.sessionContinues === 0 && state.lastTurnContinues === 0) {
+        return state;
+      }
       return {
         ...state,
         stopped: false,
         sessionContinues: 0,
+        lastTurn: null,
+        lastTurnContinues: 0,
       };
     }
     if (kind === STALL_STEER_SOURCE_KIND) {
-      const turn = typeof data.turn === 'number' ? data.turn : state.lastTurn;
+      const turn = state.currentTurn ?? state.lastAssistant?.turn ?? state.lastTurn;
       const sameTurn = turn !== null && turn === state.lastTurn;
       return {
         ...state,
@@ -101,6 +116,7 @@ export function foldStallEvent(
     const turn = typeof data.turn === 'number' ? data.turn : null;
     return {
       ...state,
+      currentTurn: turn ?? state.currentTurn,
       lastAssistant: {
         turn,
         provider: summary.provider ?? null,
@@ -139,16 +155,19 @@ export function installStallGuard(
   let projectionHandle: OptionalSessionProjectionHandle<StallProjectionState> | null = null;
   let disposed = false;
 
-  // Register pure session projection when the service is mounted
-  const projections = ctx.get?.('sessionProjections') as
-    | HostContext['sessionProjections']
-    | undefined;
-
-  if (projections !== undefined && typeof projections.register === 'function') {
+  const attachProjections = (projections: HostContext['sessionProjections']) => {
+    if (
+      disposed ||
+      projectionHandle !== null ||
+      projections === undefined ||
+      typeof projections.register !== 'function'
+    ) {
+      return;
+    }
     void Promise.resolve(
       projections.register<StallProjectionState>({
         key: STALL_PROJECTION_KEY,
-        stateVersion: 1,
+        stateVersion: 2,
         stateSchema: StallProjectionStateSchema,
         init: () => initStallProjection(),
         apply: foldStallEvent,
@@ -164,6 +183,15 @@ export function installStallGuard(
       .catch((error) => {
         logger?.debug?.('dsh-qwenwork-connect: sessionProjections unavailable for stall-guard', error);
       });
+  };
+
+  // Register pure session projection via ctx.inject so startup order does not matter
+  if (typeof ctx.inject === 'function') {
+    ctx.inject(['sessionProjections'], (projCtx) => {
+      attachProjections(projCtx.sessionProjections ?? projCtx.get?.('sessionProjections'));
+    });
+  } else {
+    attachProjections(ctx.get?.('sessionProjections'));
   }
 
   const disposeStopping = ctx.on(
@@ -241,21 +269,39 @@ function readSessionState(
     try {
       return handle.stateOf(session);
     } catch {
-      /* fallback to direct fold over session.events */
+      /* fallback to direct fold over Session snapshot */
     }
   }
   let state = initStallProjection();
-  if (Array.isArray(session.events)) {
-    for (const ev of session.events) {
-      if (ev) state = foldStallEvent(state, ev);
-    }
+  for (const ev of readEventsFromSession(session)) {
+    if (ev) state = foldStallEvent(state, ev);
   }
   return state;
 }
 
+function readEventsFromSession(session: SessionLike): readonly SessionLikeEvent[] {
+  if (typeof session.snapshotEvents === 'function') {
+    return session.snapshotEvents();
+  }
+  if (typeof session.eventAt === 'function' && typeof session.seq === 'number') {
+    const out: SessionLikeEvent[] = [];
+    for (let seq = 0; seq < session.seq; seq += 1) {
+      const ev = session.eventAt(seq);
+      if (ev !== undefined) out.push(ev);
+    }
+    return out;
+  }
+  return [];
+}
+
 function hasQueuedWork(agent: AgentLike): boolean {
   try {
-    return agent.inbox?.hasPending === true;
+    const inbox = agent.inbox;
+    if (inbox === undefined) return false;
+    return (
+      (Array.isArray(inbox.nextStep) && inbox.nextStep.length > 0) ||
+      (Array.isArray(inbox.nextTurn) && inbox.nextTurn.length > 0)
+    );
   } catch {
     return false;
   }

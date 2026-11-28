@@ -140,7 +140,8 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
     return {
       width,
       height,
-      maxBytes: REQUEST_IMAGE_MAX_BYTES,
+      maxImageBytes: REQUEST_IMAGE_MAX_BYTES,
+      imageTargetBytes: REQUEST_IMAGE_MAX_BYTES,
     };
   }
 
@@ -577,7 +578,7 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
         );
       }
       for (const block of retainedRefs) {
-        const id = String(block.attachment.id);
+        const id = attachmentKey(block.attachment);
         if (imageVersions.has(id)) continue;
         const target = this.imageRequestTarget(
           snapshot.provider,
@@ -599,7 +600,10 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
           maxBytes: MAX_REQUEST_IMAGE_BYTES,
           maxImages: MAX_REQUEST_IMAGES,
         },
-        (block) => imageVersions.get(String(block.attachment.id))?.bytes.byteLength ?? 0,
+        (block) => {
+          const version = imageVersions.get(attachmentKey(block.attachment));
+          return version === undefined ? 0 : requestImageByteLength(version);
+        },
       );
       if (offloadImages > 0) {
         throw new LlmError(
@@ -615,7 +619,71 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
       out.push({ role: 'system', content: options.system });
     }
 
-    for (const message of projected) {
+    for (let i = 0; i < projected.length; i += 1) {
+      const message = projected[i]!;
+      if (message.role === 'tool') {
+        const toolImageParts: Array<
+          { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
+        > = [];
+        let j = i;
+        for (; j < projected.length && projected[j]!.role === 'tool'; j += 1) {
+          const toolMsg = projected[j]!;
+          if (toolMsg.role !== 'tool') break;
+          const textParts: string[] = [];
+          let toolHasRetainedImage = false;
+          for (const block of toolMsg.content) {
+            if (block.type === 'text') {
+              textParts.push(block.text);
+            } else if (block.type === 'image') {
+              if (!snapshot.isVl || block.offloaded === true) {
+                textParts.push(
+                  block.offloaded === true
+                    ? offloadedImageText(block.attachment, resolveAccess(block.attachment))
+                    : textOnlyImageText(block.attachment),
+                );
+                continue;
+              }
+              const version = imageVersions.get(attachmentKey(block.attachment));
+              if (version === undefined) {
+                textParts.push(textOnlyImageText(block.attachment));
+                continue;
+              }
+              toolHasRetainedImage = true;
+              toolImageParts.push({
+                type: 'text',
+                text: requestImageHandleText(
+                  block.attachment,
+                  version,
+                  resolveAccess(block.attachment),
+                ),
+              });
+              const base64 = Buffer.from(version.data).toString('base64');
+              toolImageParts.push({
+                type: 'image_url',
+                image_url: { url: `data:${version.mediaType};base64,${base64}` },
+              });
+            }
+          }
+          const content = textParts.join('');
+          out.push({
+            role: 'tool',
+            tool_call_id: String(toolMsg.toolCallId),
+            content: content !== '' ? content : toolHasRetainedImage ? '(see attached image)' : '',
+          });
+        }
+        i = j - 1;
+        if (toolImageParts.length > 0) {
+          out.push({
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Attached image(s) from tool result:' },
+              ...toolImageParts,
+            ],
+          });
+        }
+        continue;
+      }
+
       const converted = convertMessage(message, {
         isVl: snapshot.isVl,
         imageVersions,
@@ -626,6 +694,14 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
 
     return out;
   }
+}
+
+function attachmentKey(ref: ImageAttachmentRef): string {
+  return String(ref.attachmentId);
+}
+
+function requestImageByteLength(version: RequestImageAttachment): number {
+  return typeof version.bytes === 'number' ? version.bytes : version.data.byteLength;
 }
 
 function collectRetainedImages(messages: readonly RequestMessage[]): ImageBlock[] {
@@ -706,7 +782,7 @@ function convertMessage(
         });
         continue;
       }
-      const version = ctx.imageVersions.get(String(block.attachment.id));
+      const version = ctx.imageVersions.get(attachmentKey(block.attachment));
       if (version === undefined) {
         parts.push({ type: 'text', text: textOnlyImageText(block.attachment) });
         continue;
@@ -716,7 +792,7 @@ function convertMessage(
         type: 'text',
         text: requestImageHandleText(block.attachment, version, ctx.resolveAccess(block.attachment)),
       });
-      const base64 = Buffer.from(version.bytes).toString('base64');
+      const base64 = Buffer.from(version.data).toString('base64');
       parts.push({
         type: 'image_url',
         image_url: { url: `data:${version.mediaType};base64,${base64}` },

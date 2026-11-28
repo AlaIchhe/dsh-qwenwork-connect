@@ -12,10 +12,7 @@
  */
 
 import type { LlmConfigurableProvider } from '@deepseek-ai/dsh-llm';
-import {
-  PLUGIN_CORDIS_NAME,
-  PLUGIN_SETTINGS_NS,
-} from '../shared/contracts.js';
+import { PLUGIN_CORDIS_NAME } from '../shared/contracts.js';
 import type { SiteId } from '../shared/sites.js';
 import { QwenWorkLlmAdapter } from './adapter.js';
 import { Config, readPluginConfig } from './config.js';
@@ -56,6 +53,7 @@ export function apply(ctx: HostContext, config?: unknown): void {
     }
   };
 
+  const settingsNs = ctx.fiber?.entry?.options?.id ?? name;
   const runtimes = new Map<SiteId, SiteRuntime>();
   for (const siteId of initialConfig.enabledSites) {
     try {
@@ -71,9 +69,8 @@ export function apply(ctx: HostContext, config?: unknown): void {
       directoryEntries.push({
         provider: runtime.site.provider,
         displayName: runtime.site.label,
-        settingsNs: PLUGIN_SETTINGS_NS,
+        settingsNs,
         settingsPath: [],
-        declared: true,
       });
     } catch (error) {
       ctx.logger?.error?.(`dsh-qwenwork-connect: 站点 ${siteId} 初始化失败`, error);

@@ -6,18 +6,31 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Context } from '@deepseek-ai/cordis';
-import type { ImageBlock, Message } from '@deepseek-ai/dsh-llm';
+import type { Message } from '@deepseek-ai/dsh-llm';
 
-export type ImageAttachmentRef = ImageBlock['attachment'];
+export interface ImageAttachmentRef {
+  readonly attachmentId: string;
+  readonly mediaType: string;
+  readonly bytes: number;
+  readonly width: number;
+  readonly height: number;
+  readonly name?: string;
+  readonly originalDimensions?: {
+    readonly width: number;
+    readonly height: number;
+  };
+}
 
 export interface ImageRequestTarget {
   readonly width: number;
   readonly height: number;
-  readonly maxBytes: number;
+  readonly maxImageBytes: number;
+  readonly imageTargetBytes: number;
 }
 
 export interface RequestImageAttachment {
-  readonly bytes: Uint8Array;
+  readonly data: Uint8Array;
+  readonly bytes: number;
   readonly mediaType: string;
   readonly width: number;
   readonly height: number;
@@ -91,12 +104,19 @@ export interface SessionLikeEvent {
 }
 
 export interface SessionLike {
-  readonly events?: readonly SessionLikeEvent[];
+  snapshotEvents?(): readonly SessionLikeEvent[];
+  eventAt?(seq: number): SessionLikeEvent | undefined;
+  readonly seq?: number;
+}
+
+export interface InboxLike {
+  readonly nextTurn?: readonly unknown[];
+  readonly nextStep?: readonly unknown[];
 }
 
 export interface AgentLike {
   readonly session?: SessionLike;
-  readonly inbox?: { readonly hasPending?: boolean };
+  readonly inbox?: InboxLike;
   steer(message: Message): void;
 }
 
@@ -119,5 +139,11 @@ export type HostContext = Context & {
   effect(fn: () => (() => void) | void, label?: string): () => void;
   on(event: string, listener: (...args: any[]) => unknown): () => void;
   inject(deps: readonly string[], callback: (ctx: HostContext) => void): unknown;
-  fiber?: { readonly entry?: unknown };
+  fiber?: {
+    readonly entry?: {
+      readonly options?: {
+        readonly id?: string;
+      };
+    };
+  };
 };
