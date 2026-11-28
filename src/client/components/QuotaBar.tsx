@@ -1,5 +1,5 @@
+import { KeyValueRow, QuotaProgressBar, resolveQuotaTone } from 'dsh-provider-ui';
 import { formatNumber, type TranslateFn } from '../i18n.js';
-import { progressFillStyle, progressTrackStyle, quotaLabelStyle, sectionStyle } from '../styles.js';
 
 export function QuotaBar(props: {
   readonly remaining: number;
@@ -24,24 +24,16 @@ export function QuotaBar(props: {
     : t('creditBalance', { value: formatNumber(remaining) });
 
   return (
-    <div style={sectionStyle}>
-      <div style={quotaLabelStyle}>
-        <span>{t('credits')}</span>
-        {rightLabel !== '' ? <span>{rightLabel}</span> : null}
-      </div>
+    <div style={{ display: 'grid', gap: 6, paddingTop: 6, borderTop: '1px solid var(--dsw-alias-border-l1, rgba(128,128,128,.18))' }}>
+      <KeyValueRow label={<strong>{t('credits')}</strong>} value={rightLabel || formatNumber(remaining)} />
       {percent !== undefined ? (
-        <div style={progressTrackStyle}>
-          <div style={progressFillStyle(percent)} />
-        </div>
+        <QuotaProgressBar
+          pct={percent}
+          tone={resolveQuotaTone(percent)}
+          label={t('credits')}
+        />
       ) : null}
-      <div
-        style={{
-          fontSize: 12,
-          lineHeight: '18px',
-          color: 'var(--dsw-alias-label-tertiary)',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
+      <div className="dpui-field-desc" style={{ fontVariantNumeric: 'tabular-nums' }}>
         {detailText}
       </div>
     </div>

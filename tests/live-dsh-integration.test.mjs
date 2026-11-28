@@ -549,7 +549,7 @@ test('Real DSH host + live QwenWork gateway integration (status, text stream, mu
   }
 });
 
-test('Client bundle loads via window.__ModuleLoader__ and registers all 3 DSH UI slots', async () => {
+test('Client bundle loads via window.__ModuleLoader__ and registers canonical DSH UI slots', async () => {
   const clientCode = await fs.readFile(path.join(rootDir, 'dist/client/index.js'), 'utf8');
   let loadedDef = null;
   const sandbox = {
@@ -605,8 +605,7 @@ test('Client bundle loads via window.__ModuleLoader__ and registers all 3 DSH UI
   };
   mod.apply(clientCtx);
   assert.deepEqual(registeredSlots, [
-    'plugins.bundle.config',
-    'plugins.row.config',
-    'conversation.input.left',
+    'settings.section',
+    'conversation.input.right',
   ]);
 });

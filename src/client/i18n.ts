@@ -76,6 +76,14 @@ export const zh: Record<string, string> = {
   settingsReset: '恢复默认',
   settingsSaved: '设置已保存并生效',
   settingsSaveFailed: '保存设置失败',
+  tabAccount: '账号与额度',
+  tabModels: '模型',
+  tabAdvanced: '高级设置',
+  confirmLogout: '确认退出',
+  close: '关闭',
+  discard: '放弃修改',
+  noModels: '暂无可用模型',
+  searchModels: '搜索模型名称或 ID…',
 };
 
 export const en: Record<string, string> = {
@@ -154,6 +162,14 @@ export const en: Record<string, string> = {
   settingsReset: 'Reset defaults',
   settingsSaved: 'Settings saved and applied',
   settingsSaveFailed: 'Failed to save settings',
+  tabAccount: 'Account & Quota',
+  tabModels: 'Models',
+  tabAdvanced: 'Advanced',
+  confirmLogout: 'Confirm sign out',
+  close: 'Close',
+  discard: 'Discard',
+  noModels: 'No models available',
+  searchModels: 'Search model name or ID…',
 };
 
 export function siteLabel(t: TranslateFn, siteId: SiteId): string {

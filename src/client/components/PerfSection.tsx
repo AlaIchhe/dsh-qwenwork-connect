@@ -1,6 +1,6 @@
+import { KeyValueRow, Section } from 'dsh-provider-ui';
 import type { PerfSummary } from '../../shared/contracts.js';
 import { formatNumber, type TranslateFn } from '../i18n.js';
-import { labelStyle, rowStyle, sectionStyle, sectionTitleStyle, valueStyle } from '../styles.js';
 
 export function PerfSection(props: {
   readonly perf: PerfSummary;
@@ -8,19 +8,14 @@ export function PerfSection(props: {
 }) {
   const { perf, t } = props;
   return (
-    <div style={sectionStyle}>
-      <h3 style={sectionTitleStyle}>{t('perfHeading')}</h3>
-      <div style={rowStyle}>
-        <span style={labelStyle}>{t('ttft')}</span>
-        <span style={valueStyle}>{t('ms', { value: formatNumber(perf.ttftMs) })}</span>
-      </div>
-      <div style={rowStyle}>
-        <span style={labelStyle}>{t('speed')}</span>
-        <span style={valueStyle}>{t('charsPerSec', { value: formatNumber(perf.charsPerSec) })}</span>
-      </div>
-      <div style={{ fontSize: 12, lineHeight: '18px', color: 'var(--dsw-alias-label-tertiary)' }}>
-        {t('perfSampleNote', { count: perf.samples })}
-      </div>
+    <div style={{ paddingTop: 6, borderTop: '1px solid var(--dsw-alias-border-l1, rgba(128,128,128,.18))' }}>
+      <Section title={t('perfHeading')}>
+        <KeyValueRow label={t('ttft')} value={t('ms', { value: formatNumber(perf.ttftMs) })} />
+        <KeyValueRow label={t('speed')} value={t('charsPerSec', { value: formatNumber(perf.charsPerSec) })} />
+        <div className="dpui-field-desc">
+          {t('perfSampleNote', { count: perf.samples })}
+        </div>
+      </Section>
     </div>
   );
 }

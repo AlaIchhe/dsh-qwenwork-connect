@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
 import {
+  Button,
+  Card,
+  ConfirmButton,
+  Notice,
+  ProviderShell,
+  SegmentedControl,
+  StatusDot,
+  Tag,
+} from 'dsh-provider-ui';
+import {
   LOGIN_POLL_INTERVAL_MS,
   LOGIN_START_PATH,
   LOGIN_STATUS_PATH,
@@ -16,31 +26,10 @@ import {
 import { SITE_CN, SITE_IDS, type SiteId } from '../../shared/sites.js';
 import { siteLabel, type TranslateFn } from '../i18n.js';
 import { fetchSiteStatus, patchSiteStatus, useSiteStatus } from '../store.js';
-import {
-  accountRowStyle,
-  actionButtonStyle,
-  bodyStyle,
-  cardStyle,
-  chevronStyle,
-  descriptionStyle,
-  errorStyle,
-  headTextStyle,
-  headerStyle,
-  loginLinkStyle,
-  logoutButtonStyle,
-  nameStyle,
-  noticePanelStyle,
-  primaryButtonStyle,
-  sectionStyle,
-  sectionTitleStyle,
-  statusDotStyle,
-  toolbarStyle,
-} from '../styles.js';
 import { ModelsSection } from './ModelsSection.js';
 import { PerfSection } from './PerfSection.js';
 import { QuotaBar } from './QuotaBar.js';
 import { SettingsSection } from './SettingsSection.js';
-import { SiteTabs } from './SiteTabs.js';
 
 interface LocalLoginState {
   readonly phase: LoginPhase;
@@ -55,7 +44,7 @@ export function PluginCard(props: {
   readonly initialState?: SiteStatusResponse | null;
 }) {
   const { t } = props;
-  const [open, setOpen] = useState(props.initialOpen === true);
+  const [tab, setTab] = useState<'account' | 'models' | 'advanced'>('account');
   const [activeSite, setActiveSite] = useState<SiteId>(props.initialSite ?? SITE_CN);
   const [refreshBusy, setRefreshBusy] = useState(false);
   const [login, setLogin] = useState<LocalLoginState | null>(null);
@@ -65,7 +54,7 @@ export function PluginCard(props: {
   const [toggleBusy, setToggleBusy] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
 
-  const state = useSiteStatus(activeSite, open, {
+  const state = useSiteStatus(activeSite, true, {
     initialState: props.initialState,
     errorPrefix: t('requestFailed'),
   });
@@ -150,13 +139,6 @@ export function PluginCard(props: {
   };
 
   const handleLogout = async () => {
-    if (
-      typeof window !== 'undefined' &&
-      typeof window.confirm === 'function' &&
-      !window.confirm(t('logoutConfirm', { site: siteLabel(t, activeSite) }))
-    ) {
-      return;
-    }
     setLogoutBusy(true);
     setLogoutError(null);
     try {
@@ -223,146 +205,147 @@ export function PluginCard(props: {
 
   const creditsEntry = state?.entitlements?.find((e) => e.key === 'credits');
   const remaining = state?.remaining ?? creditsEntry?.remain;
+  const models = Array.isArray(state?.models) ? state.models : [];
 
   return (
-    <div style={cardStyle}>
-      <button type="button" style={headerStyle} onClick={() => setOpen((v) => !v)}>
-        <div style={headTextStyle}>
-          <span style={nameStyle}>{t('title')}</span>
-          <span style={descriptionStyle}>{subtitleText}</span>
-        </div>
-        <span
-          style={{
-            ...chevronStyle,
-            transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
-          }}
-        >
-          ›
-        </span>
-      </button>
-
-      {open ? (
-        <div style={bodyStyle}>
-          <div style={toolbarStyle}>
-            <SiteTabs active={activeSite} onChange={handleSwitchSite} t={t} />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              {!signedIn ? (
-                <button
-                  type="button"
-                  disabled={loginBusy || login?.phase === 'pending'}
-                  style={primaryButtonStyle}
-                  onClick={handleStartLogin}
-                >
-                  {loginBusy || login?.phase === 'pending' ? t('loggingIn') : t('login')}
-                </button>
-              ) : null}
-              <button
-                type="button"
-                disabled={refreshBusy}
-                style={actionButtonStyle}
-                onClick={handleRefresh}
-              >
-                {refreshBusy ? t('refreshing') : t('refresh')}
-              </button>
-            </div>
-          </div>
-
-          {!signedIn && login === null ? (
-            <div
-              style={{
-                fontSize: 13,
-                lineHeight: '20px',
-                color: 'var(--dsw-alias-label-secondary)',
-              }}
-            >
-              {t('loginHint')}
-            </div>
-          ) : null}
-
-          {login !== null ? (
-            <div style={noticePanelStyle}>
-              <span>
-                {login.phase === 'failed' ? (login.error ?? t('loginFailed')) : t('loginWaiting')}
-              </span>
-              {login.phase === 'pending' && login.url ? (
-                <a
-                  href={login.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={loginLinkStyle}
-                >
-                  {login.url}
-                </a>
-              ) : null}
-            </div>
-          ) : null}
-
-          {logoutError !== null ? <div style={noticePanelStyle}>{logoutError}</div> : null}
-          {toggleError !== null ? <div style={noticePanelStyle}>{toggleError}</div> : null}
-
-          {state === null ? (
-            <div style={errorStyle}>{t('loading')}</div>
-          ) : (
+    <ProviderShell
+      title={t('title')}
+      subtitle={subtitleText}
+      activeTab={tab}
+      onTabChange={setTab}
+      headerExtra={
+        <SegmentedControl
+          value={activeSite}
+          onChange={handleSwitchSite}
+          options={SITE_IDS.map((siteId) => ({
+            value: siteId,
+            label: siteLabel(t, siteId),
+          }))}
+        />
+      }
+      tabs={[
+        {
+          id: 'account',
+          label: t('tabAccount'),
+          content: (
             <>
-              {state.error !== undefined &&
+              {login !== null ? (
+                <Notice kind={login.phase === 'failed' ? 'error' : 'busy'}>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <span>
+                      {login.phase === 'failed' ? (login.error ?? t('loginFailed')) : t('loginWaiting')}
+                    </span>
+                    {login.phase === 'pending' && login.url ? (
+                      <a
+                        href={login.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'var(--dsw-alias-brand-primary, #1677ff)', wordBreak: 'break-all' }}
+                      >
+                        {login.url}
+                      </a>
+                    ) : null}
+                  </div>
+                </Notice>
+              ) : null}
+
+              {logoutError !== null ? <Notice kind="error">{logoutError}</Notice> : null}
+
+              {state !== null &&
+              state.error !== undefined &&
               !(state.status === 'signed-out' && state.error.code === 'CREDENTIALS_MISSING') &&
               state.status !== 'signed-in' ? (
-                <div style={errorStyle}>
+                <Notice kind="error">
                   {[state.error.message, state.error.recovery].filter(Boolean).join('\n')}
-                </div>
+                </Notice>
               ) : null}
 
-              {signedIn ? (
-                <div style={sectionStyle}>
-                  <h3 style={sectionTitleStyle}>{t('accountHeading')}</h3>
-                  <div style={accountRowStyle}>
-                    <span style={statusDotStyle('signed-in')} />
-                    <span>{t('signedInAs', { name: state.nickname ?? state.account ?? '—' })}</span>
-                    <button
-                      type="button"
-                      disabled={logoutBusy}
-                      style={
-                        logoutBusy
-                          ? { ...logoutButtonStyle, opacity: 0.6, cursor: 'default' }
-                          : logoutButtonStyle
-                      }
-                      onClick={handleLogout}
-                    >
-                      {logoutBusy ? t('loggingOut') : t('logout')}
-                    </button>
+              <Card active={signedIn}>
+                <div className="dpui-row-between">
+                  <div className="dpui-row">
+                    <StatusDot tone={signedIn ? 'ok' : 'idle'} />
+                    <strong>
+                      {state === null
+                        ? t('loading')
+                        : signedIn
+                          ? t('signedInAs', { name: state.nickname ?? state.account ?? '—' })
+                          : t('notSignedIn')}
+                    </strong>
+                    <Tag tone={signedIn ? 'ok' : 'default'}>
+                      {signedIn ? t('signedIn') : t('notSignedIn')}
+                    </Tag>
+                  </div>
+                  <div className="dpui-row">
+                    {!signedIn ? (
+                      <Button
+                        variant="primary"
+                        disabled={loginBusy || login?.phase === 'pending'}
+                        onClick={handleStartLogin}
+                      >
+                        {loginBusy || login?.phase === 'pending' ? t('loggingIn') : t('login')}
+                      </Button>
+                    ) : (
+                      <ConfirmButton
+                        label={logoutBusy ? t('loggingOut') : t('logout')}
+                        confirmLabel={t('confirmLogout')}
+                        disabled={logoutBusy}
+                        onConfirm={() => { void handleLogout(); }}
+                      />
+                    )}
+                    <Button disabled={refreshBusy} onClick={() => { void handleRefresh(); }}>
+                      {refreshBusy ? t('refreshing') : t('refresh')}
+                    </Button>
                   </div>
                 </div>
-              ) : null}
 
-              {signedIn && typeof remaining === 'number' ? (
-                <QuotaBar
-                  remaining={remaining}
-                  total={creditsEntry?.size ?? state.total}
-                  baseline={state.creditBaseline}
-                  t={t}
-                />
-              ) : null}
+                {!signedIn && login === null ? (
+                  <p className="dpui-muted">{t('loginHint')}</p>
+                ) : null}
 
-              {state.perf !== undefined ? <PerfSection perf={state.perf} t={t} /> : null}
+                {signedIn && typeof remaining === 'number' ? (
+                  <QuotaBar
+                    remaining={remaining}
+                    total={creditsEntry?.size ?? state?.total}
+                    baseline={state?.creditBaseline}
+                    t={t}
+                  />
+                ) : null}
 
-              {Array.isArray(state.models) && state.models.length > 0 ? (
-                <ModelsSection
-                  models={state.models}
-                  busy={toggleBusy}
-                  onToggle={handleToggleModel}
-                  t={t}
-                />
-              ) : null}
-
-              <SettingsSection
-                settings={state.settings}
-                onSaved={handleSettingsSaved}
+                {state?.perf !== undefined ? <PerfSection perf={state.perf} t={t} /> : null}
+              </Card>
+            </>
+          ),
+        },
+        {
+          id: 'models',
+          label: t('tabModels'),
+          badge: models.length > 0 ? String(models.length) : undefined,
+          content: (
+            <>
+              {toggleError !== null ? <Notice kind="error">{toggleError}</Notice> : null}
+              <ModelsSection
+                models={models}
+                busy={toggleBusy}
+                refreshing={refreshBusy}
+                onRefresh={() => { void handleRefresh(); }}
+                onToggle={(model) => { void handleToggleModel(model); }}
                 t={t}
               />
             </>
-          )}
-        </div>
-      ) : null}
-    </div>
+          ),
+        },
+        {
+          id: 'advanced',
+          label: t('tabAdvanced'),
+          content: (
+            <SettingsSection
+              settings={state?.settings}
+              onSaved={handleSettingsSaved}
+              t={t}
+            />
+          ),
+        },
+      ]}
+    />
   );
 }

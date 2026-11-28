@@ -4,7 +4,12 @@
  */
 
 import {
-  PLUGIN_CORDIS_NAME,
+  registerComposerQuotaSlot,
+  registerProviderSettings,
+  setPortalRequire,
+  type SlotsServiceLike,
+} from 'dsh-provider-ui';
+import {
   PLUGIN_PACKAGE_NAME,
   type SiteStatusResponse,
 } from '../shared/contracts.js';
@@ -19,14 +24,12 @@ interface ClientContext {
     register(namespace: string, bundles: Record<string, Record<string, string>>): () => void;
     bind(namespace: string): TranslateFn;
   };
-  slots: {
-    inject(slotName: string, factory: () => () => void): () => void;
-    register(meta: Record<string, unknown>, renderer: (props: any) => unknown): () => void;
-  };
+  slots: SlotsServiceLike;
 }
 
 export const name = PLUGIN_PACKAGE_NAME;
 export const inject = ['slots', 'locale'] as const;
+export const __setOptionalRequire = setPortalRequire;
 
 export function apply(ctx: ClientContext): void {
   try {
@@ -37,49 +40,39 @@ export function apply(ctx: ClientContext): void {
     );
     const t = ctx.locale.bind(namespace);
 
-    const renderConfig = (slotProps?: {
-      view?: string;
+    const SettingsPanel = (slotProps?: {
       initialState?: SiteStatusResponse | null;
       initialSite?: SiteId;
-    }) =>
-      slotProps?.view === 'summary' ? (
-        t('subtitle')
-      ) : (
-        <PluginCard
-          t={t}
-          initialOpen
-          {...(slotProps?.initialState !== undefined ? { initialState: slotProps.initialState } : {})}
-          {...(slotProps?.initialSite !== undefined ? { initialSite: slotProps.initialSite } : {})}
-        />
-      );
+    }) => (
+      <PluginCard
+        t={t}
+        {...(slotProps?.initialState !== undefined ? { initialState: slotProps.initialState } : {})}
+        {...(slotProps?.initialSite !== undefined ? { initialSite: slotProps.initialSite } : {})}
+      />
+    );
 
-    for (const [slot, key] of [
-      ['plugins.bundle.config', PLUGIN_PACKAGE_NAME],
-      ['plugins.row.config', `${PLUGIN_PACKAGE_NAME}#${PLUGIN_CORDIS_NAME}`],
-    ] as const) {
-      try {
-        ctx.slots.inject(slot, () => ctx.slots.register({ name: slot, key }, renderConfig));
-      } catch (error) {
-        console.error(`[dsh-qwenwork-connect] ${slot} config slot failed to register:`, error);
-      }
-    }
+    registerProviderSettings(
+      ctx,
+      {
+        id: 'qwenwork',
+        order: 44,
+        label: () => t('title'),
+        locale: namespace,
+        inject: () => ({ t }),
+      },
+      SettingsPanel,
+    );
 
-    try {
-      ctx.slots.inject('conversation.input.left', () =>
-        ctx.slots.register(
-          {
-            name: 'conversation.input.left',
-            id: 'dsh-qwenwork-connect-composer-credits',
-            order: 4,
-            locale: namespace,
-            inject: () => ({ t }),
-          },
-          ComposerCredits,
-        ),
-      );
-    } catch (error) {
-      console.error('[dsh-qwenwork-connect] composer credits slot failed to register:', error);
-    }
+    registerComposerQuotaSlot(
+      ctx,
+      {
+        id: 'dsh-qwenwork-connect-composer-credits',
+        order: 1004,
+        locale: namespace,
+        inject: () => ({ t }),
+      },
+      ComposerCredits,
+    );
   } catch (error) {
     console.error('[dsh-qwenwork-connect] client plugin failed to load:', error);
   }
