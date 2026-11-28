@@ -29,8 +29,9 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
+    "verify": "node scripts/verify-repo.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "npm run typecheck && npm run build && npm test",
+    "check": "npm run typecheck && npm run build && npm run verify && npm test",
     "prepublishOnly": "npm run build"
   },
   "files": [
