@@ -157,7 +157,7 @@ export class SiteRuntime {
   }
 
   findModel(modelId: string): ModelCatalogEntry | undefined {
-    return this.catalog.find((m) => m.id === modelId || m.displayNameId === modelId);
+    return this.catalog.find((m) => m.id === modelId);
   }
 
   startBackgroundCatalogSync(): void {

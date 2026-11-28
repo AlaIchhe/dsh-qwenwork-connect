@@ -22,7 +22,6 @@ export const HARD_MAX_OUTPUT_TOKENS = 393_216;
 
 export interface ModelCatalogEntry {
   readonly id: string;
-  readonly displayNameId?: string;
   readonly shortName: string;
   readonly description?: string;
   readonly billingRate: number | null;
@@ -56,7 +55,6 @@ export interface SitePreset {
 const CN_FALLBACK_MODELS: readonly ModelCatalogEntry[] = Object.freeze([
   Object.freeze({
     id: 'flash',
-    displayNameId: 'qwen3.8-flash',
     shortName: '标准',
     billingRate: 0.1,
     supportsImages: true,
@@ -259,6 +257,5 @@ export function normalizeModelKey(
   model: string,
   catalog: readonly ModelCatalogEntry[],
 ): string {
-  const hit = catalog.find((entry) => entry.id === model || entry.displayNameId === model);
-  return hit?.id ?? model;
+  return catalog.find((entry) => entry.id === model)?.id ?? model;
 }

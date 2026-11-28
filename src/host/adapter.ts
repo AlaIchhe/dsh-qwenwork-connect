@@ -202,10 +202,12 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
 
     // Deliberately omit `reasoning`: QwenWork gateway forces thinking on and
     // ignores reasoning effort levels, so we avoid advertising fake effort menus.
+    // DSH requires resolved metadata `id` to match the exact requested model ID,
+    // while `modelKey` carries the normalized gateway key for upstream routing.
     const resolvedModel: LlmResolvedModelInfo = {
       provider,
-      id: modelKey,
-      name: entry ? formatModelDisplayName(entry) : modelKey,
+      id: requestedModel,
+      name: entry ? formatModelDisplayName(entry) : requestedModel,
       ...(entry ? { description: describeModel(entry) } : {}),
       inputModalities: isVl ? ['text', 'image'] : ['text'],
       context: { contextWindow },

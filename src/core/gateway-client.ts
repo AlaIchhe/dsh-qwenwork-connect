@@ -726,7 +726,6 @@ function toCatalogEntry(item: unknown): ModelCatalogEntry | null {
 
   return {
     id,
-    ...(id === 'flash' ? { displayNameId: 'qwen3.8-flash' } : {}),
     shortName,
     ...(description === undefined ? {} : { description }),
     billingRate,
