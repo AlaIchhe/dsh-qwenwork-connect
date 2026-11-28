@@ -160,3 +160,11 @@ export {
   HybridCredentialStore,
   installStallGuard,
 };
+export {
+  SETTINGS_BOUNDS,
+  defaultSettingsSnapshot,
+  nextSettingsRawConfig,
+  readPluginConfig,
+  settingsSnapshotOf,
+  validateSettingsPatch,
+} from './config.js';

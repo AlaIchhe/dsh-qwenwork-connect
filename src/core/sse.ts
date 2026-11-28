@@ -110,6 +110,7 @@ export interface NormalizedUsage {
   readonly totalTokens: number;
   readonly cacheReadTokens?: number;
   readonly cacheWriteTokens?: number;
+  readonly reasoningTokens?: number;
 }
 
 export type QwenWorkFrame =
@@ -236,7 +237,11 @@ export function parseUsage(rawUsage: unknown): NormalizedUsage | null {
   const total = toNonNegInt(data.total_tokens);
   if (prompt !== null || completion !== null || total !== null) {
     const details = isRecord(data.prompt_tokens_details) ? data.prompt_tokens_details : undefined;
+    const completionDetails = isRecord(data.completion_tokens_details)
+      ? data.completion_tokens_details
+      : undefined;
     const cached = toNonNegInt(details?.cached_tokens);
+    const reasoning = toNonNegInt(completionDetails?.reasoning_tokens);
     const rawPrompt = prompt ?? 0;
     const cacheRead = cached !== null && cached > 0 ? Math.min(cached, rawPrompt) : 0;
     const inputTokens = Math.max(0, rawPrompt - cacheRead);
@@ -247,6 +252,7 @@ export function parseUsage(rawUsage: unknown): NormalizedUsage | null {
       outputTokens,
       totalTokens,
       ...(cacheRead > 0 ? { cacheReadTokens: cacheRead } : {}),
+      ...(reasoning !== null && reasoning > 0 ? { reasoningTokens: reasoning } : {}),
     };
   }
 

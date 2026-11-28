@@ -50,20 +50,25 @@ import {
 import { ToolCallIndexNormalizer, type NormalizedUsage } from '../core/sse.js';
 import {
   MAX_INPUT_TOKENS,
-  MAX_OUTPUT_TOKENS,
   describeModel,
   formatModelDisplayName,
   normalizeModelKey,
   siteIdOfProvider,
   type SiteId,
 } from '../shared/sites.js';
+import {
+  DEFAULT_IMAGE_MAX_COUNT,
+  DEFAULT_IMAGE_MAX_PER_IMAGE_BYTES,
+  DEFAULT_IMAGE_MAX_TOTAL_BYTES,
+  DEFAULT_IMAGE_PIXEL_BUDGET,
+} from './config.js';
 import type { SiteRuntime } from './site-runtime.js';
 import type { DebugTracer } from './trace.js';
 
-export const MAX_REQUEST_IMAGE_BYTES = 6 * 1024 * 1024;
-export const MAX_REQUEST_IMAGES = 32;
-const REQUEST_IMAGE_PIXEL_BUDGET = 4_194_304; // 2048 x 2048
-const REQUEST_IMAGE_MAX_BYTES = 1_048_576; // 1 MiB per image
+export const MAX_REQUEST_IMAGE_BYTES = DEFAULT_IMAGE_MAX_TOTAL_BYTES;
+export const MAX_REQUEST_IMAGES = DEFAULT_IMAGE_MAX_COUNT;
+const REQUEST_IMAGE_PIXEL_BUDGET = DEFAULT_IMAGE_PIXEL_BUDGET;
+const REQUEST_IMAGE_MAX_BYTES = DEFAULT_IMAGE_MAX_PER_IMAGE_BYTES;
 
 interface CallSnapshot {
   readonly runtime: SiteRuntime;
@@ -71,7 +76,9 @@ interface CallSnapshot {
   readonly modelKey: string;
   readonly resolvedModel: LlmResolvedModelInfo;
   readonly isVl: boolean;
+  readonly isReasoning: boolean;
   readonly isDisabled: boolean;
+  readonly configuredMaxOutputTokens: number;
 }
 
 export interface QwenWorkAdapterOptions {
@@ -132,16 +139,21 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
   }
 
   imageRequestTarget(
-    _provider: string,
+    provider: string,
     _model: string,
     image: ImageAttachmentRef,
   ): ImageRequestTarget {
-    const { width, height } = fitPixelBudget(image.width, image.height, REQUEST_IMAGE_PIXEL_BUDGET);
+    const siteId = siteIdOfProvider(provider);
+    const runtime = siteId !== undefined ? this.runtimes.get(siteId) : undefined;
+    const imgCfg = runtime?.config().images;
+    const pixelBudget = imgCfg?.pixelBudget ?? REQUEST_IMAGE_PIXEL_BUDGET;
+    const perImageMax = imgCfg?.maxPerImageBytes ?? REQUEST_IMAGE_MAX_BYTES;
+    const { width, height } = fitPixelBudget(image.width, image.height, pixelBudget);
     return {
       width,
       height,
-      maxImageBytes: REQUEST_IMAGE_MAX_BYTES,
-      imageTargetBytes: REQUEST_IMAGE_MAX_BYTES,
+      maxImageBytes: perImageMax,
+      imageTargetBytes: perImageMax,
     };
   }
 
@@ -177,10 +189,16 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
     const modelKey = normalizeModelKey(requestedModel, catalog);
     const entry = runtime.findModel(modelKey);
     const disabled = runtime.disabledModels().includes(modelKey);
+    const cfg = runtime.config();
 
     const isVl = entry?.supportsImages ?? true;
+    const isReasoning = entry?.isReasoning ?? true;
     const contextWindow = entry?.contextWindow ?? MAX_INPUT_TOKENS;
-    const maxTokens = entry?.maxTokens ?? MAX_OUTPUT_TOKENS;
+    const configuredMaxOutputTokens = cfg.generation.maxOutputTokens;
+    const defaultMaxTokens =
+      configuredMaxOutputTokens > 0
+        ? configuredMaxOutputTokens
+        : entry?.maxTokens;
 
     // Deliberately omit `reasoning`: QwenWork gateway forces thinking on and
     // ignores reasoning effort levels, so we avoid advertising fake effort menus.
@@ -191,7 +209,9 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
       ...(entry ? { description: describeModel(entry) } : {}),
       inputModalities: isVl ? ['text', 'image'] : ['text'],
       context: { contextWindow },
-      defaultMaxTokens: maxTokens,
+      ...(configuredMaxOutputTokens > 0 && defaultMaxTokens !== undefined
+        ? { defaultMaxTokens }
+        : {}),
     };
 
     return {
@@ -200,7 +220,9 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
       modelKey,
       resolvedModel,
       isVl,
+      isReasoning,
       isDisabled: disabled,
+      configuredMaxOutputTokens,
     };
   }
 
@@ -209,7 +231,7 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
     snapshot: CallSnapshot,
   ): AsyncIterable<StreamChunk> {
     const startedAt = Date.now();
-    const { runtime, modelKey, isVl, isDisabled } = snapshot;
+    const { runtime, modelKey, isVl, isReasoning, isDisabled, configuredMaxOutputTokens } = snapshot;
 
     if (isDisabled) {
       throw new LlmError(
@@ -231,17 +253,19 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
         : deriveSessionId(wireMessages);
 
     const tools = serializeTools(options.tools);
-    const maxOutputTokens =
+    const maxOutputTokens: number | null =
       typeof options.maxTokens === 'number' && options.maxTokens > 0
-        ? Math.min(options.maxTokens, MAX_OUTPUT_TOKENS)
-        : snapshot.resolvedModel.defaultMaxTokens ?? MAX_OUTPUT_TOKENS;
+        ? Math.floor(options.maxTokens)
+        : configuredMaxOutputTokens > 0
+          ? configuredMaxOutputTokens
+          : null;
 
     const bodyJson = buildInferBody({
       messages: wireMessages,
       modelKey,
       sessionId,
       isVl,
-      isReasoning: true,
+      isReasoning,
       tools,
       maxInputTokens: snapshot.resolvedModel.context?.contextWindow ?? MAX_INPUT_TOKENS,
       maxOutputTokens,
@@ -480,6 +504,9 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
           ...(latestUsage.cacheWriteTokens !== undefined
             ? { cacheWriteTokens: latestUsage.cacheWriteTokens }
             : {}),
+          ...(latestUsage.reasoningTokens !== undefined
+            ? { reasoningTokens: latestUsage.reasoningTokens }
+            : {}),
         };
         yield { type: 'usage', usage };
       }
@@ -593,12 +620,13 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
         imageVersions.set(id, loaded);
       }
 
+      const imgCfg = snapshot.runtime.config().images;
       const offloadImages = requiredImageOffload(
         projected,
         {
           representation: 'base64',
-          maxBytes: MAX_REQUEST_IMAGE_BYTES,
-          maxImages: MAX_REQUEST_IMAGES,
+          maxBytes: imgCfg.maxTotalBytes,
+          maxImages: imgCfg.maxImages,
         },
         (block) => {
           const version = imageVersions.get(attachmentKey(block.attachment));
@@ -607,7 +635,7 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
       );
       if (offloadImages > 0) {
         throw new LlmError(
-          `Request image payload exceeds QwenWork limit (${MAX_REQUEST_IMAGE_BYTES} bytes / ${MAX_REQUEST_IMAGES} images); offload ${offloadImages} oldest image(s).`,
+          `Request image payload exceeds QwenWork limit (${imgCfg.maxTotalBytes} bytes / ${imgCfg.maxImages} images); offload ${offloadImages} oldest image(s).`,
           IMAGE_OFFLOAD_REQUIRED_CODE,
           { offloadImages },
         );

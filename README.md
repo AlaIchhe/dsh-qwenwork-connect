@@ -53,9 +53,9 @@ npx dsh-qwenwork-connect logout --site intl     # 退出国际版
 
 ---
 
-## 插件配置（`cordis.patch.yml`）
+## 插件配置（`cordis.patch.yml` / DSH 参数设置面板）
 
-大部分配置项均为 DSH `volatile` 字段，修改后**热更新生效、不重启插件**：
+所有运行参数均为 DSH `volatile` 字段，**可在 DSH「插件 → 千问办公 → 参数设置」面板中直接修改并热更新生效，无需重启插件**，也可手动编辑 `cordis.patch.yml`：
 
 ```yaml
 - id: llm-qwenwork
@@ -65,6 +65,13 @@ npx dsh-qwenwork-connect logout --site intl     # 退出国际版
     disabledModels:
       cn: []
       intl: []
+    generation:
+      maxOutputTokens: 131072 # 最大输出 Token（思考+正文共享）；0 = 不传 max_tokens 由上游默认决定
+    images:
+      maxTotalBytes: 6291456  # 单次请求图片总字节上限（默认 6 MiB）
+      maxPerImageBytes: 1048576 # 单张图片字节上限（默认 1 MiB）
+      maxImages: 32           # 单次请求最大图片张数
+      pixelBudget: 4194304    # 单图像素预算（默认 2048x2048）
     trustedHosts: []          # 反向代理访问 DSH 时额外放行的 Host 域名
     timeouts:
       headerMs: 180000        # 响应头等待上限（毫秒）

@@ -44,6 +44,7 @@ import {
   disabledForSite,
   filterEnabledModels,
   readPluginConfig,
+  settingsSnapshotOf,
   type ResolvedPluginConfig,
 } from './config.js';
 import type { LoggerLike } from './dsh-services.js';
@@ -326,6 +327,7 @@ export class SiteRuntime {
 
     const models = catalogForCard(this.catalog, this.disabledModels());
     const perf = this.perfSummary();
+    const settings = settingsSnapshotOf(this.config());
 
     try {
       const context = await this.getAccountOverview(force);
@@ -372,6 +374,7 @@ export class SiteRuntime {
         ...(creditBaseline !== undefined ? { creditBaseline } : {}),
         ...(models.length > 0 ? { models } : {}),
         ...(perf !== null ? { perf } : {}),
+        settings,
       };
     } catch (error) {
       const retryable = isQwenError(error) && error.retryable;
@@ -388,6 +391,7 @@ export class SiteRuntime {
         error: errPayload,
         ...(models.length > 0 ? { models } : {}),
         ...(perf !== null ? { perf } : {}),
+        settings,
       };
     }
   }

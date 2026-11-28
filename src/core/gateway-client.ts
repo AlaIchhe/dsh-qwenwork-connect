@@ -85,17 +85,36 @@ export interface InferBodyParams {
   readonly isReasoning?: boolean;
   readonly tools?: readonly OpenAiToolSpec[];
   readonly maxInputTokens?: number;
-  readonly maxOutputTokens?: number;
+  /**
+   * Output token limit sent as `parameters.max_tokens`.
+   * - Positive integer: forwarded verbatim to upstream.
+   * - `null` or `0`: omit `parameters.max_tokens` so upstream applies its own default.
+   * - `undefined`: defaults to `MAX_OUTPUT_TOKENS` (131,072).
+   */
+  readonly maxOutputTokens?: number | null;
   readonly sessionType?: string;
 }
 
 export function buildInferBody(params: InferBodyParams): string {
   const requestId = params.requestId ?? crypto.randomUUID();
   const maxInput = params.maxInputTokens ?? MAX_INPUT_TOKENS;
-  const maxOutput = params.maxOutputTokens ?? MAX_OUTPUT_TOKENS;
+  const maxOutput =
+    params.maxOutputTokens === null
+      ? undefined
+      : params.maxOutputTokens === undefined
+        ? MAX_OUTPUT_TOKENS
+        : params.maxOutputTokens > 0
+          ? Math.floor(params.maxOutputTokens)
+          : undefined;
   const isVl = params.isVl === true;
   const isReasoning = params.isReasoning !== false;
   const lastUserText = extractLastUserText(params.messages);
+
+  const parameters: Record<string, unknown> = {
+    enable_thinking: isReasoning,
+    context_length: maxInput,
+    ...(maxOutput !== undefined ? { max_tokens: maxOutput } : {}),
+  };
 
   const body = {
     request_id: requestId,
@@ -142,11 +161,7 @@ export function buildInferBody(params: InferBodyParams): string {
     system: [],
     messages: params.messages,
     tools: params.tools ? [...params.tools] : [],
-    parameters: {
-      enable_thinking: true,
-      max_tokens: maxOutput,
-      context_length: maxInput,
-    },
+    parameters,
     business: {
       product: 'qoder_work',
       type: 'agent',
@@ -699,12 +714,11 @@ function toCatalogEntry(item: unknown): ModelCatalogEntry | null {
   const id = typeof item.key === 'string' ? item.key.trim() : '';
   if (id === '' || item.enable === false) return null;
 
-  const fromConfig = maxContextConfigWindow(item.context_config);
+  const fromConfig = defaultContextConfigWindow(item.context_config);
   const fromField = positiveNumber(item.max_input_tokens);
-  const contextWindow =
-    fromConfig !== undefined && fromField !== undefined
-      ? Math.max(fromConfig, fromField)
-      : (fromConfig ?? fromField ?? MAX_INPUT_TOKENS);
+  const contextWindow = fromConfig ?? fromField ?? MAX_INPUT_TOKENS;
+  const upstreamMaxOutput =
+    positiveNumber(item.max_output_tokens) ?? positiveNumber(item.max_tokens);
 
   const shortName = asString(item.display_name) ?? id;
   const description = asString(item.description) ?? undefined;
@@ -717,23 +731,30 @@ function toCatalogEntry(item: unknown): ModelCatalogEntry | null {
     ...(description === undefined ? {} : { description }),
     billingRate,
     supportsImages: item.is_vl === true,
+    isReasoning: item.is_reasoning !== false,
     contextWindow,
-    maxTokens: MAX_OUTPUT_TOKENS,
+    ...(upstreamMaxOutput !== undefined ? { maxTokens: upstreamMaxOutput } : {}),
     ...(item.is_default === true ? { isDefault: true } : {}),
     ...(item.is_new === true ? { isNew: true } : {}),
   };
 }
 
-function maxContextConfigWindow(config: unknown): number | undefined {
+function defaultContextConfigWindow(config: unknown): number | undefined {
   if (!isRecord(config)) return undefined;
+  let defaultTokens: number | undefined;
   let max: number | undefined;
   for (const value of Object.values(config)) {
-    const tokens = isRecord(value) ? positiveNumber(value.token_count) : undefined;
-    if (tokens !== undefined && (max === undefined || tokens > max)) {
+    if (!isRecord(value)) continue;
+    const tokens = positiveNumber(value.token_count);
+    if (tokens === undefined) continue;
+    if (value.is_default === true) {
+      defaultTokens = tokens;
+    }
+    if (max === undefined || tokens > max) {
       max = tokens;
     }
   }
-  return max;
+  return defaultTokens ?? max;
 }
 
 export function extractAccountContext(payload: unknown): AccountOverview | null {

@@ -221,6 +221,24 @@ export function classifyUpstreamFailure(input: ParsedUpstreamFailure = {}): Clas
     };
   }
 
+  if (status === 402 || code === '402') {
+    return {
+      status: 402,
+      kind: 'QUOTA_EXCEEDED',
+      llmCode: 'QUOTA',
+      message: `当前账号额度或套餐不支持此次请求（HTTP 402）：${message}`,
+    };
+  }
+
+  if (status === 400 || code === '400') {
+    return {
+      status: 400,
+      kind: 'INVALID_REQUEST',
+      llmCode: 'INVALID_REQUEST',
+      message: `千问办公拒绝了这次请求（HTTP 400，参数可能超出模型限制）：${message}`,
+    };
+  }
+
   if (UPSTREAM_FAILED_RE.test(message)) {
     return {
       status: 502,

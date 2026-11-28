@@ -264,6 +264,97 @@ export const badgeStyle: CSSProperties = {
   color: 'var(--dsw-alias-state-success-primary, #22a06b)',
 };
 
+export const settingsDividerStyle: CSSProperties = {
+  borderTop: '1px solid var(--dsw-alias-border-l2)',
+  paddingTop: 12,
+};
+
+export const settingsGroupStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+  padding: '10px 12px',
+  borderRadius: 8,
+  border: '1px solid var(--dsw-alias-border-l2)',
+  background: 'var(--dsw-alias-bg-layer-2, rgba(127, 127, 127, 0.04))',
+};
+
+export const settingsFieldRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  fontSize: 13,
+  lineHeight: '18px',
+};
+
+export const settingsHintStyle: CSSProperties = {
+  fontSize: 12,
+  lineHeight: '17px',
+  color: 'var(--dsw-alias-label-tertiary)',
+};
+
+export const numberInputStyle: CSSProperties = {
+  width: 108,
+  boxSizing: 'border-box',
+  padding: '4px 8px',
+  borderRadius: 6,
+  border: '1px solid var(--dsw-alias-border-l2)',
+  background: 'var(--dsw-alias-bg-module-platform)',
+  color: 'var(--dsw-alias-label-primary)',
+  font: 'inherit',
+  fontSize: 13,
+  fontVariantNumeric: 'tabular-nums',
+  textAlign: 'right',
+};
+
+export const presetRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+};
+
+export function presetChipStyle(active: boolean): CSSProperties {
+  return {
+    border: active
+      ? '1px solid var(--dsw-alias-brand-primary, #1677ff)'
+      : '1px solid var(--dsw-alias-border-l2)',
+    borderRadius: 999,
+    padding: '2px 9px',
+    font: 'inherit',
+    fontSize: 12,
+    lineHeight: '18px',
+    cursor: 'pointer',
+    background: active
+      ? 'var(--dsw-alias-brand-subtle, rgba(22, 119, 255, 0.12))'
+      : 'var(--dsw-alias-bg-module-platform)',
+    color: active
+      ? 'var(--dsw-alias-brand-primary, #1677ff)'
+      : 'var(--dsw-alias-label-secondary)',
+    fontWeight: active ? 600 : 400,
+  };
+}
+
+export const settingsGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gap: 8,
+};
+
+export const settingsCellStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+  fontSize: 12,
+  color: 'var(--dsw-alias-label-secondary)',
+};
+
+export const settingsSuccessStyle: CSSProperties = {
+  fontSize: 12,
+  lineHeight: '18px',
+  color: 'var(--dsw-alias-state-success-primary, #22a06b)',
+};
+
 export const COMPOSER_CSS = `
 .dsm-qwenwork-composer-credits{display:inline-flex;align-items:center;min-width:0}
 .dsm-qwenwork-composer-credits-text{

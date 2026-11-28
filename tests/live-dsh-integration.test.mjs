@@ -22,7 +22,9 @@ import zlib from 'node:zlib';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as plugin from '../dist/host/index.js';
 import {
+  DEFAULT_MAX_OUTPUT_TOKENS,
   FileCredentialStore,
+  SETTINGS_PATH,
   STATUS_PATH,
   pathForSite,
 } from '../dist/core/index.js';
@@ -230,6 +232,23 @@ test('Real DSH host + live QwenWork gateway integration (status, text stream, mu
       assert.equal(body.status, 'signed-in', `Expected signed-in status, got: ${JSON.stringify(body.error ?? body.status)}`);
       assert.equal(body.provider, provider);
       assert.ok(Array.isArray(body.models) && body.models.length > 0, 'Expected non-empty live model catalog');
+      assert.equal(body.settings?.maxOutputTokens, DEFAULT_MAX_OUTPUT_TOKENS);
+
+      // GET /settings returns live runtime settings snapshot; invalid POST /settings fails with 400
+      const settingsRes = await fetch(`${origin}${SETTINGS_PATH}`, {
+        headers: { accept: 'application/json' },
+      });
+      assert.equal(settingsRes.status, 200);
+      const settingsBody = await settingsRes.json();
+      assert.equal(settingsBody.ok, true);
+      assert.equal(settingsBody.settings.maxOutputTokens, DEFAULT_MAX_OUTPUT_TOKENS);
+
+      const badSettingsRes = await fetch(`${origin}${SETTINGS_PATH}`, {
+        method: 'POST',
+        headers: { accept: 'application/json', 'content-type': 'application/json' },
+        body: JSON.stringify({ maxOutputTokens: 100 }),
+      });
+      assert.equal(badSettingsRes.status, 400);
 
       // Real LlmRuntime.listModels() reflects live signed-in catalog
       const models = await ctx.llm.listModels(provider);

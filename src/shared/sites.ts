@@ -10,7 +10,15 @@ export const SITE_IDS = [SITE_CN, SITE_INTL] as const;
 export type SiteId = (typeof SITE_IDS)[number];
 
 export const MAX_INPUT_TOKENS = 1_000_000;
-export const MAX_OUTPUT_TOKENS = 32_000;
+/**
+ * Safe common output token ceiling across all verified CN models (128 KiB).
+ * Pro / GLM-5.x / Qwen3.8-Max enforce 131,072 strictly; DeepSeek / Flash / Qwen4-Max accept >= 262,144.
+ */
+export const DEFAULT_MAX_OUTPUT_TOKENS = 131_072;
+/** Backward-compatible alias for DEFAULT_MAX_OUTPUT_TOKENS. */
+export const MAX_OUTPUT_TOKENS = DEFAULT_MAX_OUTPUT_TOKENS;
+/** Upper guardrail for manual overrides (matches verified deepseek-flash ceiling). */
+export const HARD_MAX_OUTPUT_TOKENS = 393_216;
 
 export interface ModelCatalogEntry {
   readonly id: string;
@@ -19,8 +27,9 @@ export interface ModelCatalogEntry {
   readonly description?: string;
   readonly billingRate: number | null;
   readonly supportsImages: boolean;
+  readonly isReasoning?: boolean;
   readonly contextWindow: number;
-  readonly maxTokens: number;
+  readonly maxTokens?: number;
   readonly isDefault?: boolean;
   readonly isRecommended?: boolean;
   readonly isNew?: boolean;
@@ -46,40 +55,63 @@ export interface SitePreset {
 
 const CN_FALLBACK_MODELS: readonly ModelCatalogEntry[] = Object.freeze([
   Object.freeze({
+    id: 'flash',
+    displayNameId: 'qwen3.8-flash',
+    shortName: '标准',
+    billingRate: 0.1,
+    supportsImages: true,
+    isReasoning: true,
+    contextWindow: MAX_INPUT_TOKENS,
+    maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
+    isDefault: true,
+    isRecommended: true,
+  }),
+  Object.freeze({
     id: 'pro',
     shortName: '高级',
     billingRate: 1,
     supportsImages: true,
+    isReasoning: true,
     contextWindow: MAX_INPUT_TOKENS,
-    maxTokens: MAX_OUTPUT_TOKENS,
-    isDefault: true,
+    maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
   }),
   Object.freeze({
-    id: 'flash',
-    displayNameId: 'qwen3.8-flash',
-    shortName: '标准｜Qwen3.8-Flash',
+    id: 'deepseek-flash',
+    shortName: 'DeepSeek-Flash',
     billingRate: 0.1,
     supportsImages: true,
+    isReasoning: true,
     contextWindow: MAX_INPUT_TOKENS,
-    maxTokens: MAX_OUTPUT_TOKENS,
-    isRecommended: true,
+    maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
+    isNew: true,
   }),
   Object.freeze({
-    id: 'frontier-1',
-    shortName: 'Qwen4-Max 预览',
-    billingRate: 0.4,
+    id: 'deepseek-v4-pro',
+    shortName: 'Deepseek-V4-Pro',
+    billingRate: 0.2,
     supportsImages: true,
+    isReasoning: true,
     contextWindow: MAX_INPUT_TOKENS,
-    maxTokens: MAX_OUTPUT_TOKENS,
+    maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     isNew: true,
+  }),
+  Object.freeze({
+    id: 'qwen4-max',
+    shortName: 'Qwen4-Max',
+    billingRate: 1.6,
+    supportsImages: true,
+    isReasoning: true,
+    contextWindow: MAX_INPUT_TOKENS,
+    maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
   }),
   Object.freeze({
     id: 'qwen3.8-max-preview',
     shortName: 'Qwen3.8-Max',
-    billingRate: 1.1,
+    billingRate: 1.8,
     supportsImages: true,
+    isReasoning: true,
     contextWindow: MAX_INPUT_TOKENS,
-    maxTokens: MAX_OUTPUT_TOKENS,
+    maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     isNew: true,
   }),
 ]);
@@ -90,8 +122,9 @@ const INTL_FALLBACK_MODELS: readonly ModelCatalogEntry[] = Object.freeze([
     shortName: 'Pro',
     billingRate: null,
     supportsImages: true,
+    isReasoning: true,
     contextWindow: MAX_INPUT_TOKENS,
-    maxTokens: MAX_OUTPUT_TOKENS,
+    maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     isDefault: true,
   }),
   Object.freeze({
@@ -99,8 +132,9 @@ const INTL_FALLBACK_MODELS: readonly ModelCatalogEntry[] = Object.freeze([
     shortName: 'Standard｜Qwen3.8-Flash',
     billingRate: null,
     supportsImages: true,
+    isReasoning: true,
     contextWindow: MAX_INPUT_TOKENS,
-    maxTokens: MAX_OUTPUT_TOKENS,
+    maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
     isRecommended: true,
   }),
   Object.freeze({
@@ -108,8 +142,9 @@ const INTL_FALLBACK_MODELS: readonly ModelCatalogEntry[] = Object.freeze([
     shortName: 'Flagship',
     billingRate: null,
     supportsImages: true,
+    isReasoning: true,
     contextWindow: MAX_INPUT_TOKENS,
-    maxTokens: MAX_OUTPUT_TOKENS,
+    maxTokens: DEFAULT_MAX_OUTPUT_TOKENS,
   }),
 ]);
 

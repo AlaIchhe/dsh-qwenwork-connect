@@ -10,9 +10,10 @@ import {
   type CardModelItem,
   type LoginPhase,
   type LoginStatusResponse,
+  type PluginSettingsSnapshot,
   type SiteStatusResponse,
 } from '../../shared/contracts.js';
-import { SITE_CN, type SiteId } from '../../shared/sites.js';
+import { SITE_CN, SITE_IDS, type SiteId } from '../../shared/sites.js';
 import { siteLabel, type TranslateFn } from '../i18n.js';
 import { fetchSiteStatus, patchSiteStatus, useSiteStatus } from '../store.js';
 import {
@@ -38,6 +39,7 @@ import {
 import { ModelsSection } from './ModelsSection.js';
 import { PerfSection } from './PerfSection.js';
 import { QuotaBar } from './QuotaBar.js';
+import { SettingsSection } from './SettingsSection.js';
 import { SiteTabs } from './SiteTabs.js';
 
 interface LocalLoginState {
@@ -207,6 +209,12 @@ export function PluginCard(props: {
     }
   };
 
+  const handleSettingsSaved = (nextSettings: PluginSettingsSnapshot) => {
+    for (const id of SITE_IDS) {
+      patchSiteStatus(id, (prev) => (prev === null ? prev : { ...prev, settings: nextSettings }));
+    }
+  };
+
   const signedIn = state?.status === 'signed-in';
   const subtitleText =
     signedIn && state?.tierName
@@ -345,6 +353,12 @@ export function PluginCard(props: {
                   t={t}
                 />
               ) : null}
+
+              <SettingsSection
+                settings={state.settings}
+                onSaved={handleSettingsSaved}
+                t={t}
+              />
             </>
           )}
         </div>

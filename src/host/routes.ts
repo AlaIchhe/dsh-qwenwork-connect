@@ -13,6 +13,7 @@ import {
   LOGOUT_PATH,
   MODELS_TOGGLE_PATH,
   ROUTE_PREFIX,
+  SETTINGS_PATH,
   STATUS_PATH,
   siteFromRequestUrl,
 } from '../shared/contracts.js';
@@ -20,7 +21,10 @@ import type { SiteId } from '../shared/sites.js';
 import {
   disabledForSite,
   nextRawConfig,
+  nextSettingsRawConfig,
   readPluginConfig,
+  settingsSnapshotOf,
+  validateSettingsPatch,
   wouldLeaveNone,
 } from './config.js';
 import type { HostContext, LoggerLike } from './dsh-services.js';
@@ -90,14 +94,31 @@ export function createPluginRoutesHandler(
 
     const rawUrl = req.url ?? '';
     const pathname = rawUrl.split('?')[0] ?? '';
-    const siteId = siteFromRequestUrl(rawUrl);
-    const runtime = deps.runtimes.get(siteId);
-    if (runtime === undefined) {
-      sendJson(res, 404, { error: `site "${siteId}" is not enabled` });
-      return;
-    }
 
     try {
+      if (pathname === SETTINGS_PATH) {
+        if (req.method === 'GET') {
+          sendJson(res, 200, {
+            ok: true,
+            settings: settingsSnapshotOf(readPluginConfig(deps.rawConfig)),
+          });
+          return;
+        }
+        if (req.method === 'POST') {
+          await handleSettingsUpdate(req, res, deps);
+          return;
+        }
+        sendJson(res, 405, { error: 'GET or POST only' });
+        return;
+      }
+
+      const siteId = siteFromRequestUrl(rawUrl);
+      const runtime = deps.runtimes.get(siteId);
+      if (runtime === undefined) {
+        sendJson(res, 404, { error: `site "${siteId}" is not enabled` });
+        return;
+      }
+
       if (pathname === STATUS_PATH) {
         if (req.method !== 'GET') {
           sendJson(res, 405, { error: 'method not allowed' });
@@ -248,6 +269,61 @@ async function handleModelsToggle(
     siteId: runtime.siteId,
     model: modelKey,
     enabled,
+  });
+}
+
+async function handleSettingsUpdate(
+  req: IncomingMessage,
+  res: ServerResponse,
+  deps: PluginRoutesDeps,
+): Promise<void> {
+  let payload: unknown;
+  try {
+    const raw = await readBody(req, MAX_BODY_BYTES);
+    payload = raw === '' ? {} : JSON.parse(raw);
+  } catch (error) {
+    const status = (error as { status?: number })?.status ?? 400;
+    sendJson(res, status, {
+      error: status === 400 ? '请求体不是合法 JSON' : redactSecrets(error, 200),
+    });
+    return;
+  }
+
+  const validation = validateSettingsPatch(payload);
+  if (!validation.ok) {
+    sendJson(res, 400, { error: validation.error });
+    return;
+  }
+
+  const editor = deps.rootCtx.get?.('configEditor') as
+    | { edit?: (entry: unknown, change: (cur: Record<string, unknown>) => Record<string, unknown>) => Promise<void> }
+    | undefined;
+  const entry = deps.rootCtx.fiber?.entry;
+  if (editor === undefined || typeof editor.edit !== 'function' || entry === undefined) {
+    sendJson(res, 503, { error: '当前环境没有配置编辑器，无法保存参数设置' });
+    return;
+  }
+
+  let savedRaw: Record<string, unknown> | null = null;
+  try {
+    await editor.edit(entry, (current) => {
+      savedRaw = nextSettingsRawConfig(current, validation.patch);
+      return savedRaw;
+    });
+  } catch (error) {
+    const message = redactSecrets(error, 300);
+    deps.logger?.warn?.('dsh-qwenwork-connect: 保存参数设置失败', message);
+    sendJson(res, 500, { error: message });
+    return;
+  }
+
+  const nextSettings = settingsSnapshotOf(readPluginConfig(savedRaw ?? deps.rawConfig));
+  deps.logger?.info?.(
+    `dsh-qwenwork-connect: 参数设置已更新（maxOutputTokens=${nextSettings.maxOutputTokens}, stallGuard=${nextSettings.stallGuardEnabled}/${nextSettings.stallGuardMaxContinues}）`,
+  );
+  sendJson(res, 200, {
+    ok: true,
+    settings: nextSettings,
   });
 }
 

@@ -34,6 +34,7 @@ test('parseQwenWorkFrame decodes encoded inner body and extracts disjoint cached
       completion_tokens: 25,
       total_tokens: 125,
       prompt_tokens_details: { cached_tokens: 40 },
+      completion_tokens_details: { reasoning_tokens: 18 },
     },
   });
   const outer = JSON.stringify({
@@ -53,6 +54,7 @@ test('parseQwenWorkFrame decodes encoded inner body and extracts disjoint cached
     outputTokens: 25,
     totalTokens: 125,
     cacheReadTokens: 40,
+    reasoningTokens: 18,
   });
 });
 

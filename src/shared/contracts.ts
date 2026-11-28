@@ -14,6 +14,7 @@ export const LOGIN_START_PATH = `${ROUTE_PREFIX}/login/start`;
 export const LOGIN_STATUS_PATH = `${ROUTE_PREFIX}/login/status`;
 export const LOGOUT_PATH = `${ROUTE_PREFIX}/logout`;
 export const MODELS_TOGGLE_PATH = `${ROUTE_PREFIX}/models/toggle`;
+export const SETTINGS_PATH = `${ROUTE_PREFIX}/settings`;
 
 export const STATUS_POLL_INTERVAL_MS = 60_000;
 export const LOGIN_POLL_INTERVAL_MS = 2_000;
@@ -72,6 +73,28 @@ export interface PerfSummary {
   readonly lastCharsPerSec: number;
 }
 
+export interface PluginSettingsSnapshot {
+  /** 0 = omit `parameters.max_tokens` and defer to upstream model default. */
+  readonly maxOutputTokens: number;
+  readonly stallGuardEnabled: boolean;
+  readonly stallGuardMaxContinues: number;
+  readonly headerTimeoutSec: number;
+  readonly firstContentTimeoutSec: number;
+  readonly idleTimeoutSec: number;
+  readonly imageMaxTotalMiB: number;
+  readonly imageMaxPerImageMiB: number;
+  readonly imageMaxCount: number;
+  readonly imageMaxPixels: number;
+  readonly debugTraceEnabled: boolean;
+}
+
+export type PluginSettingsPatch = Partial<PluginSettingsSnapshot>;
+
+export interface SettingsResponse {
+  readonly ok: true;
+  readonly settings: PluginSettingsSnapshot;
+}
+
 export interface SiteStatusResponse {
   readonly status: 'signed-in' | 'signed-out' | 'unavailable';
   readonly provider: string;
@@ -92,6 +115,7 @@ export interface SiteStatusResponse {
   readonly creditBaseline?: number;
   readonly models?: readonly CardModelItem[];
   readonly perf?: PerfSummary;
+  readonly settings?: PluginSettingsSnapshot;
   readonly error?: StatusErrorPayload;
 }
 

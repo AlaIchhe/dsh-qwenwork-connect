@@ -40,6 +40,32 @@ test('classifyUpstreamFailure maps business codes to structured DSH LLM failure 
   const rate = classifyUpstreamFailure({ status: 429, message: 'slow down' });
   assert.equal(rate.llmCode, 'RATE_LIMIT');
   assert.equal(rate.retryAfterMs, 30_000);
+
+  // HTTP 400 with generic "Error in upstream response" must stay INVALID_REQUEST (never retry as 502)
+  const badParam = classifyUpstreamFailure({
+    status: 400,
+    code: '400',
+    message: 'Error in upstream response',
+  });
+  assert.equal(badParam.llmCode, 'INVALID_REQUEST');
+  assert.equal(badParam.status, 400);
+
+  // HTTP 402 (plan/credits mismatch) maps to QUOTA
+  const paymentReq = classifyUpstreamFailure({
+    status: 402,
+    code: '402',
+    message: 'model not included in plan',
+  });
+  assert.equal(paymentReq.llmCode, 'QUOTA');
+  assert.equal(paymentReq.status, 402);
+
+  // Non-400 "Error in upstream response" still maps to retryable 502 SERVER
+  const upstream502 = classifyUpstreamFailure({
+    status: 500,
+    message: 'Error in upstream response',
+  });
+  assert.equal(upstream502.llmCode, 'SERVER');
+  assert.equal(upstream502.status, 502);
 });
 
 test('redactSecrets strips JWTs, Bearer headers, and secret query parameters', () => {
