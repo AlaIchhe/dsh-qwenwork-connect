@@ -224,6 +224,7 @@ export function normalizeModelKey(
   model: string,
   catalog: readonly ModelCatalogEntry[],
 ): string {
-  const hit = catalog.find((entry) => entry.id === model || entry.displayNameId === model);
+  const hit = catalog.find((entry) => entry.id === model)
+    ?? catalog.find((entry) => entry.displayNameId === model);
   return hit?.id ?? model;
 }

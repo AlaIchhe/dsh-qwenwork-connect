@@ -186,7 +186,8 @@ export class QwenWorkLlmAdapter extends LlmAdapter {
     // ignores reasoning effort levels, so we avoid advertising fake effort menus.
     const resolvedModel: LlmResolvedModelInfo = {
       provider,
-      id: modelKey,
+      // Exact resolution requires the requested ID even when modelKey is an alias.
+      id: requestedModel,
       name: entry ? formatModelDisplayName(entry) : modelKey,
       ...(entry ? { description: describeModel(entry) } : {}),
       inputModalities: isVl ? ['text', 'image'] : ['text'],
